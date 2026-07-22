@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Scro
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
 
-const ZONES = ['north', 'south', 'east', 'west'];
+const ZONES = ['north', 'south', 'east', 'west', 'central'];
 
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();

@@ -93,7 +93,7 @@ export default function WaitingRoomScreen({ navigation }) {
 
             {mode === 'swipe' && (
               <View style={styles.row}>
-                {[5, 6, 8, 10].map((count) => (
+                {[5, 10].map((count) => (
                   <TouchableOpacity
                     key={count}
                     style={[styles.segment, swipeCount === count && styles.segmentActive]}

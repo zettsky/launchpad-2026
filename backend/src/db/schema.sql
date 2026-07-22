@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   swiping_member_count INTEGER,
   meeting_lat REAL,
   meeting_lng REAL,
-  meeting_zone TEXT CHECK (meeting_zone IN ('north', 'south', 'east', 'west')),
+  meeting_zone TEXT CHECK (meeting_zone IN ('north', 'south', 'east', 'west', 'central')),
   deadline TEXT,
   decided_place_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))

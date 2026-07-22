@@ -50,6 +50,7 @@ function resolveMeetingPoint(session) {
     south: { lat: -ZONE_OFFSET_DEGREES, lng: 0 },
     east: { lat: 0, lng: ZONE_OFFSET_DEGREES },
     west: { lat: 0, lng: -ZONE_OFFSET_DEGREES },
+    central: { lat: 0, lng: 0}
   };
   const offset = offsets[session.meeting_zone] || { lat: 0, lng: 0 };
   return { lat: base.lat + offset.lat, lng: base.lng + offset.lng };
@@ -109,7 +110,7 @@ async function runMatching(sessionId) {
     return { mode: 'auto', decided: winner };
   }
 
-  const count = session.swipe_count || 8;
+  const count = session.swipe_count || 10;
   const deck = ranked.slice(0, count);
   insertCandidates(sessionId, deck);
 
