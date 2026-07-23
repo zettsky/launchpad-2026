@@ -1,20 +1,76 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
+import { api } from '../services/api';
+import { useSession } from '../context/SessionContext';
 
 export default function HomeScreen({ navigation }) {
+  const { deviceId, code, snapshot, startSession, resetSession } = useSession();
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleJoin() {
+    if (!joinCode.trim()) return;
+    setJoining(true);
+    setError(null);
+    try {
+      const normalizedCode = joinCode.trim().toUpperCase();
+      const res = await api.joinSession(normalizedCode, deviceId, null);
+      startSession({ code: normalizedCode, memberId: res.memberId, host: false });
+      setJoinCode('');
+      navigation.navigate('WaitingRoom');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setJoining(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.emoji}>🍜</Text>
+      <View style={styles.header}>
         <Text style={styles.title}>Launchpad</Text>
-        <Text style={styles.subtitle}>Turn "where do you want to eat" into a 2-minute decision.</Text>
+        <TouchableOpacity style={styles.profileButton} onPress={() => {}}>
+          <Text style={styles.profileIcon}>👤</Text>
+        </TouchableOpacity>
+      </View>
 
-        <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('CreateSession')}>
-          <Text style={styles.primaryButtonText}>Start a session</Text>
+      <View style={styles.content}>
+        <View style={styles.joinRow}>
+          <Text style={styles.joinLabel}>Join with code:</Text>
+          <TextInput
+            style={styles.joinInput}
+            value={joinCode}
+            onChangeText={setJoinCode}
+            placeholder="ABC123"
+            autoCapitalize="characters"
+            maxLength={6}
+            onSubmitEditing={handleJoin}
+          />
+        </View>
+        {joining && <ActivityIndicator style={{ marginBottom: 8 }} />}
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <TouchableOpacity style={styles.hostButton} onPress={() => navigation.navigate('CreateSession')}>
+          <Text style={styles.hostButtonText}>+</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('JoinSession')}>
-          <Text style={styles.secondaryButtonText}>Join with a code</Text>
-        </TouchableOpacity>
+
+        {code && (
+          <TouchableOpacity style={styles.sessionCard} onPress={() => navigation.navigate('WaitingRoom')}>
+            <TouchableOpacity style={styles.dismissButton} onPress={resetSession}>
+              <Text style={styles.dismissText}>×</Text>
+            </TouchableOpacity>
+            <Text style={styles.sessionCode}>Session {code}</Text>
+            <View style={styles.sessionRow}>
+              <Text style={styles.sessionMeta}>
+                Deadline: {snapshot?.deadline ? new Date(snapshot.deadline).toLocaleString() : 'None'}
+              </Text>
+              <Text style={styles.sessionMeta}>
+                Selected: {snapshot?.preferencesCount ?? 0}/{snapshot?.memberCount ?? 0}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -22,12 +78,53 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
-  emoji: { fontSize: 56 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+  },
   title: { fontSize: 32, fontWeight: '800' },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 24 },
-  primaryButton: { backgroundColor: '#ff5a5f', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 999, width: '100%' },
-  primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  secondaryButton: { paddingVertical: 16, paddingHorizontal: 32, borderRadius: 999, width: '100%' },
-  secondaryButtonText: { color: '#333', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#cfe2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileIcon: { fontSize: 22 },
+  content: { flex: 1, padding: 24, gap: 12, justifyContent: 'center' },
+  joinRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  joinLabel: { fontSize: 16, fontWeight: '700' },
+  joinInput: {
+    flex: 1,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#ebebeb',
+  },
+  error: { color: '#d33', fontSize: 14, marginBottom: 8 },
+  hostButton: {
+    backgroundColor: '#ebebeb',
+    paddingVertical: 28,
+    borderRadius: 20,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  hostButtonText: { color: '#888', fontSize: 40, fontWeight: '300', lineHeight: 42 },
+  sessionCard: {
+    backgroundColor: '#ebebeb',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+  },
+  dismissButton: { position: 'absolute', top: 12, right: 16 },
+  dismissText: { fontSize: 20, color: '#888' },
+  sessionCode: { fontSize: 16, color: '#333', marginBottom: 12 },
+  sessionRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  sessionMeta: { fontSize: 14, color: '#555' },
 });
