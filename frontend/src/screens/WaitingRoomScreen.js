@@ -58,7 +58,13 @@ export default function WaitingRoomScreen({ navigation }) {
         <Text style={styles.memberCount}>{snapshot.memberCount} in the group</Text>
 
         {!meetingPointSet && (
-          <Text style={styles.status}>Waiting for the host to set the meeting point…</Text>
+          isHost ? (
+            <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('MeetingPoint')}>
+              <Text style={styles.primaryButtonText}>Set meeting point</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.status}>Waiting for the host to set the meeting point…</Text>
+          )
         )}
 
         {meetingPointSet && !hasSubmittedPreferences && (

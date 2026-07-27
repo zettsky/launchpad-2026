@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   profileIcon: { fontSize: 22 },
-  content: { flex: 1, padding: 24, gap: 12, justifyContent: 'center' },
+  content: { flex: 1, padding: 24, gap: 12, justifyContent: 'flex-start' },
   joinRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   joinLabel: { fontSize: 16, fontWeight: '700' },
   joinInput: {
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   hostButtonText: { color: '#888', fontSize: 40, fontWeight: '300', lineHeight: 42 },
-  sessionCard: {
+  sessionCard: {  
     backgroundColor: '#ebebeb',
     borderRadius: 20,
     padding: 20,
