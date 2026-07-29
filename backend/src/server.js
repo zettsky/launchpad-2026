@@ -1,12 +1,13 @@
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const { Server } = require('socket.io');
 
-const sessionsRouter = require('./routes/sessions');
-const placesRouter = require('./routes/places');
-const { attach } = require('./sockets');
+import express, { json } from 'express';
+import cors from 'cors';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+
+import sessionsRouter from './routes/sessions';
+import placesRouter from './routes/places';
+import { attach } from './sockets';
 
 const app = express();
 app.use(cors());
@@ -16,7 +17,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use('/sessions', sessionsRouter);
 app.use('/places', placesRouter);
 
-const server = http.createServer(app);
+const server = createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 attach(io);
 

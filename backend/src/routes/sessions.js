@@ -233,6 +233,7 @@ router.post('/:code/start-matching', async (req, res) => {
     const snapshot = await triggerMatching(session, mode, swipeCount);
     res.json(snapshot);
   } catch (err) {
+    console.error('Trigger Matching Error:', err);
     res.status(422).json({ error: err.message });
   }
 });
