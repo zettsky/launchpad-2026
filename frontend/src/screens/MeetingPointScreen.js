@@ -2,24 +2,47 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
+// npx expo install react-native-maps
+// npx expo install expo-location
+// npm install react-native-google-places-autocomplete
+import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
 const ZONES = ['north', 'south', 'east', 'west', 'central'];
 
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();
   const [mode, setMode] = useState('pin'); // 'pin' | 'zone'
-  const [lat, setLat] = useState('');
-  const [lng, setLng] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState({
+    latitude: 1.3521,
+    longitude: 103.8198,
+  });
   const [zone, setZone] = useState(null);
   const [deadlineMinutes, setDeadlineMinutes] = useState('');
   const [error, setError] = useState(null);
+
+  async function getCurrentLocation() {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+
+    if (status !== "granted") {
+        return;
+    }
+
+    let location = await Location.getCurrentPositionAsync({});
+
+    setSelectedLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+    });
+}
 
   async function handleSubmit() {
     setError(null);
     const payload = {};
     if (mode === 'pin') {
-      const latNum = parseFloat(lat);
-      const lngNum = parseFloat(lng);
+      payload.lat = selectedLocation.latitude;
+      payload.lng = selectedLocation.longitude;
       if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
         setError('Enter valid latitude and longitude');
         return;
@@ -70,10 +93,60 @@ export default function MeetingPointScreen({ navigation }) {
 
         {mode === 'pin' ? (
           <View style={styles.section}>
-            <Text style={styles.label}>Latitude</Text>
-            <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numeric" placeholder="1.3048" />
-            <Text style={styles.label}>Longitude</Text>
-            <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numeric" placeholder="103.8318" />
+            <GooglePlacesAutocomplete
+              placeholder="Search for a meeting point"
+              fetchDetails={true}
+              onPress={(data, details = null) => {
+                if (details) {
+                  setSelectedLocation({
+                    latitude: details.geometry.location.lat,
+                    longitude: details.geometry.location.lng,
+                  });
+                }
+              }}
+              query={{
+                key: "YOUR_GOOGLE_API_KEY",
+                language: "en",
+              }}
+              styles={{
+                textInput: styles.input,
+               }}
+            />
+
+            <MapView
+              style={{
+                height: 350,
+                borderRadius: 12,
+                marginTop: 15,
+              }}
+              region={{
+                latitude: selectedLocation.latitude,
+                longitude: selectedLocation.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+              onPress={(e) =>
+                setSelectedLocation(e.nativeEvent.coordinate)
+              }
+            >
+              <Marker
+                coordinate={selectedLocation}
+                draggable
+                onDragEnd={(e) =>
+                  setSelectedLocation(e.nativeEvent.coordinate)
+                }
+              />
+            </MapView>
+
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={getCurrentLocation}
+            >
+              <Text style={styles.primaryButtonText}>
+                📍 Use Current Location
+              </Text>
+            </TouchableOpacity>
+
           </View>
         ) : (
           <View style={styles.section}>
@@ -131,3 +204,4 @@ const styles = StyleSheet.create({
   primaryButton: { backgroundColor: '#ff5a5f', paddingVertical: 16, borderRadius: 999, marginTop: 12 },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
 });
+// ignore
