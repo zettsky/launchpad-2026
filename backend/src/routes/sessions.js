@@ -2,7 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
 const { generateSessionCode } = require('../utils/codeGenerator');
-const { runMatching, resolveSwipeRound } = require('../services/matchingEngine');
+const { runMatching, resolveSwipeRound, resetForNextRound } = require('../services/matchingEngine');
 const { broadcast } = require('../sockets');
 
 const router = express.Router();
@@ -278,6 +278,28 @@ router.post('/:code/swipe', (req, res) => {
     .get(session.id).c;
   broadcast(session.code, 'swipe:cast', { totalSwipes: tallyCounts });
   res.json({ resolved: false });
+});
+
+// POST /sessions/:code/run-it-back — host resets a decided session so the group can pick again
+router.post('/:code/run-it-back', (req, res) => {
+  const session = getSessionByCode(req.params.code);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const { hostDeviceId } = req.body;
+  if (hostDeviceId !== session.host_device_id) {
+    return res.status(403).json({ error: 'Only the host can run it back' });
+  }
+
+  try {
+    resetForNextRound(session.id);
+  } catch (err) {
+    return res.status(409).json({ error: err.message });
+  }
+
+  const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(session.id);
+  const snapshot = buildSnapshot(updated);
+  broadcast(session.code, 'session:reset', snapshot);
+  res.json(snapshot);
 });
 
 module.exports = router;

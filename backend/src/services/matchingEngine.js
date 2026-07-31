@@ -78,7 +78,10 @@ async function findCandidates(session, aggregate) {
     maxPrice: Number.isFinite(aggregate.budgetRange.max) ? aggregate.budgetRange.max : undefined,
   });
 
+  const alreadyDecided = new Set(JSON.parse(session.decided_history || '[]'));
+
   return results
+    .filter((c) => !alreadyDecided.has(c.placeId))
     .map((c) => ({ ...c, score: scoreCandidate(c, aggregate.budgetRange) }))
     .sort((a, b) => b.score - a.score);
 }
@@ -101,12 +104,8 @@ async function runMatching(sessionId) {
 
   if (session.mode === 'auto') {
     const winner = ranked[0];
-    db.prepare('UPDATE sessions SET state = ?, decided_place_id = ? WHERE id = ?').run(
-      'decided',
-      winner.placeId,
-      sessionId
-    );
     insertCandidates(sessionId, [winner]);
+    finalizeDecision(sessionId, winner.placeId);
     return { mode: 'auto', decided: winner };
   }
 
@@ -201,12 +200,39 @@ function resolveSwipeRound(sessionId) {
 }
 
 function finalizeDecision(sessionId, placeId) {
-  db.prepare('UPDATE sessions SET state = ?, decided_place_id = ? WHERE id = ?').run(
+  const session = db.prepare('SELECT decided_history FROM sessions WHERE id = ?').get(sessionId);
+  const history = JSON.parse(session.decided_history || '[]');
+  if (!history.includes(placeId)) history.push(placeId);
+
+  db.prepare('UPDATE sessions SET state = ?, decided_place_id = ?, decided_history = ? WHERE id = ?').run(
     'decided',
     placeId,
+    JSON.stringify(history),
     sessionId
   );
   return placeId;
 }
 
-module.exports = { aggregatePreferences, runMatching, resolveSwipeRound };
+// Wipes this round AND the group's meeting point/preferences, back to a fresh 'open'
+// state — used when the same friend group wants to pick again on a different
+// occasion. decided_history is intentionally kept so a repeat pick can still be avoided.
+function resetForNextRound(sessionId) {
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+  if (!session) throw new Error('Session not found');
+  if (session.state !== 'decided') throw new Error('Session is not in a decided state');
+
+  db.runInTransaction(() => {
+    db.prepare('DELETE FROM restaurant_candidates WHERE session_id = ?').run(sessionId);
+    db.prepare('DELETE FROM swipes WHERE session_id = ?').run(sessionId);
+    db.prepare('DELETE FROM preferences WHERE session_id = ?').run(sessionId);
+    db.prepare(
+      `UPDATE sessions
+       SET state = 'open', mode = NULL, swipe_count = NULL,
+           swiping_member_count = NULL, decided_place_id = NULL, deadline = NULL,
+           meeting_lat = NULL, meeting_lng = NULL, meeting_zone = NULL
+       WHERE id = ?`
+    ).run(sessionId);
+  });
+}
+
+module.exports = { aggregatePreferences, runMatching, resolveSwipeRound, resetForNextRound };

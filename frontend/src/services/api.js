@@ -43,4 +43,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ memberId, placeId, vote }),
     }),
+
+  runItBack: (code, hostDeviceId) =>
+    request(`/sessions/${code}/run-it-back`, {
+      method: 'POST',
+      body: JSON.stringify({ hostDeviceId }),
+    }),
+
 };

@@ -57,7 +57,7 @@ export default function MeetingPointScreen({ navigation }) {
       payload.zone = zone;
     }
     if (deadlineMinutes.trim()) {
-      const minutes = parseFloat(deadlineMinutes);
+      const minutes = parseInt(deadlineMinutes, 10);
       if (!Number.isNaN(minutes) && minutes > 0) {
         payload.deadline = new Date(Date.now() + minutes * 60000).toISOString();
       }
@@ -168,7 +168,7 @@ export default function MeetingPointScreen({ navigation }) {
         <TextInput
           style={styles.input}
           value={deadlineMinutes}
-          onChangeText={setDeadlineMinutes}
+          onChangeText={(text) => setDeadlineMinutes(text.replace(/[^0-9]/g, ''))}
           keyboardType="numeric"
           placeholder="e.g. 15"
         />

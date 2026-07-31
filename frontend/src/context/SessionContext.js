@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { getDeviceId } from '../services/deviceId';
 import { api } from '../services/api';
 import { getSocket, joinSessionRoom } from '../services/socket';
+import { getStoredSession, setStoredSession, clearStoredSession } from '../services/activeSession';
 
 const SessionContext = createContext(null);
 
@@ -20,6 +21,16 @@ export function SessionProvider({ children }) {
     getDeviceId().then(setDeviceId);
   }, []);
 
+  useEffect(() => {
+    getStoredSession().then((stored) => {
+      if (stored?.code && stored?.memberId) {
+        setCode(stored.code);
+        setMemberId(stored.memberId);
+        setIsHost(!!stored.host);
+      }
+    });
+  }, []);
+
   const refreshSnapshot = useCallback(async (targetCode = codeRef.current) => {
     if (!targetCode) return;
     const data = await api.getSnapshot(targetCode);
@@ -32,6 +43,7 @@ export function SessionProvider({ children }) {
     setMemberId(newMemberId);
     setIsHost(host);
     setHasSubmittedPreferences(false);
+    setStoredSession({ code: newCode, memberId: newMemberId, host });
   }, []);
 
   const resetSession = useCallback(() => {
@@ -40,17 +52,22 @@ export function SessionProvider({ children }) {
     setIsHost(false);
     setSnapshot(null);
     setHasSubmittedPreferences(false);
+    clearStoredSession();
   }, []);
 
   useEffect(() => {
     if (!code) return undefined;
 
     joinSessionRoom(code);
-    refreshSnapshot(code);
+    refreshSnapshot(code).catch(() => resetSession());
 
     const socket = getSocket();
-    const onAnyUpdate = () => refreshSnapshot(code);
-    const events = [
+    const onAnyUpdate = () => refreshSnapshot(code).catch(() => {});
+    const onSessionReset = () => {
+      setHasSubmittedPreferences(false);
+      refreshSnapshot(code).catch(() => {});
+    };
+    const genericEvents = [
       'member:joined',
       'preferences:count',
       'meeting-point:set',
@@ -59,7 +76,14 @@ export function SessionProvider({ children }) {
       'session:decided',
       'matching:error',
     ];
-    events.forEach((event) => socket.on(event, onAnyUpdate));
+    genericEvents.forEach((event) => socket.on(event, onAnyUpdate));
+    socket.on('session:reset', onSessionReset);
+
+    return () => {
+      genericEvents.forEach((event) => socket.off(event, onAnyUpdate));
+      socket.off('session:reset', onSessionReset);
+    };
+  }, [code, refreshSnapshot, resetSession]);
 
     return () => {
       events.forEach((event) => socket.off(event, onAnyUpdate));

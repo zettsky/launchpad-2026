@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Linking, ActivityIndicator } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
 import { useSession } from '../context/SessionContext';
+import { api } from '../services/api';
 import RestaurantCard from '../components/RestaurantCard';
 import { shareText } from '../services/share';
 
@@ -11,8 +12,16 @@ function formatDistance(distanceM) {
 }
 
 export default function DecisionScreen({ navigation }) {
-  const { snapshot, resetSession } = useSession();
+  const { code, deviceId, isHost, snapshot, resetSession } = useSession();
   const decided = snapshot?.decided;
+  const [runningItBack, setRunningItBack] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (snapshot && snapshot.state !== 'decided') {
+      navigation.replace('WaitingRoom');
+    }
+  }, [snapshot?.state, navigation]);
 
   function handleDirections() {
     if (!decided) return;
@@ -23,6 +32,18 @@ export default function DecisionScreen({ navigation }) {
   function handleShare() {
     if (!decided) return;
     shareText(`🍜 You're eating at ${decided.name}, ${formatDistance(decided.distanceM)} from the meeting point!`);
+  }
+
+  async function handleRunItBack() {
+    setRunningItBack(true);
+    setError(null);
+    try {
+      await api.runItBack(code, deviceId);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRunningItBack(false);
+    }
   }
 
   function handleDone() {
@@ -50,6 +71,20 @@ export default function DecisionScreen({ navigation }) {
         <TouchableOpacity style={styles.secondaryButton} onPress={handleShare}>
           <Text style={styles.secondaryButtonText}>Share with the group</Text>
         </TouchableOpacity>
+
+        {isHost && (
+          <>
+            {error && <Text style={styles.error}>{error}</Text>}
+            <TouchableOpacity style={styles.runItBackButton} onPress={handleRunItBack} disabled={runningItBack}>
+              {runningItBack ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.runItBackText}>Run it back 🔁</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+
         <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
           <Text style={styles.doneButtonText}>Done</Text>
         </TouchableOpacity>
@@ -66,6 +101,9 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
   secondaryButton: { paddingVertical: 14, borderRadius: 999, marginTop: 8, borderWidth: 1, borderColor: '#ddd' },
   secondaryButtonText: { color: '#333', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  runItBackButton: { backgroundColor: '#222', paddingVertical: 14, borderRadius: 999, marginTop: 8 },
+  runItBackText: { color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  error: { color: '#d33', fontSize: 14, textAlign: 'center', marginTop: 8 },
   doneButton: { paddingVertical: 14, marginTop: 4 },
   doneButtonText: { color: '#888', fontSize: 15, textAlign: 'center' },
 });

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   meeting_zone TEXT CHECK (meeting_zone IN ('north', 'south', 'east', 'west', 'central')),
   deadline TEXT,
   decided_place_id TEXT,
+  decided_history TEXT NOT NULL DEFAULT '[]',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
