@@ -85,11 +85,6 @@ export function SessionProvider({ children }) {
     };
   }, [code, refreshSnapshot, resetSession]);
 
-    return () => {
-      events.forEach((event) => socket.off(event, onAnyUpdate));
-    };
-  }, [code, refreshSnapshot]);
-
   const value = {
     deviceId,
     code,
