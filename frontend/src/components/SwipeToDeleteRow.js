@@ -35,17 +35,26 @@ export default function SwipeToDeleteRow({ children, onDelete }) {
   }
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.deleteBackground}>
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-      <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX }] }}>
-        {children}
-      </Animated.View>
+  <View style={styles.wrap}>
+    <View style={styles.deleteBackground}>
+      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+        <Text style={styles.deleteText}>Delete</Text>
+      </TouchableOpacity>
     </View>
-  );
+
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={[
+        styles.foreground,
+        {
+          transform: [{ translateX }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -53,15 +62,21 @@ const styles = StyleSheet.create({
   position: 'relative',
   overflow: 'hidden',
   borderRadius: 20, },
+  foreground: {
+  width: '100%',
+  backgroundColor: '#fff', // or your theme background
+  zIndex: 1,
+},
   deleteBackground: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     right: 0,
     width: DELETE_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#e53935',
-    borderRadius: 20,
-    overflow: 'hidden',
+    zIndex: 0,
   },
   deleteButton: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   deleteText: { color: '#fff', fontWeight: '700' },
