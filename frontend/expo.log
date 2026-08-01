@@ -3,3 +3,23 @@ env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_GOOGLE_PLACES_KEY
 Starting project at C:\Users\inessa\Desktop\launchpad\frontend
 Starting Metro Bundler
 
+Waiting on http://localhost:8081
+
+An update for expo is available: 57.0.7 → ~57.0.9
+4 other packages may need updating. Run npx expo install --check for details.
+Logs for your project will appear below.
+Web Bundled 504ms index.js (528 modules)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web Bundled 20ms index.js (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents

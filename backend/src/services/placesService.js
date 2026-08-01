@@ -59,7 +59,12 @@ async function searchRestaurants({ lat, lng, radiusMeters, cuisines, minPrice, m
   };
 
   if (Number.isFinite(minPrice) && Number.isFinite(maxPrice)) {
-    body.priceLevels = PRICE_LEVELS.slice(minPrice, maxPrice + 1);
+    // Google's Places API rejects PRICE_LEVEL_FREE as a search filter outright, so it's
+    // excluded here even though it stays in PRICE_LEVELS for parsing returned results.
+    const levels = PRICE_LEVELS.slice(minPrice, maxPrice + 1).filter((l) => l !== 'PRICE_LEVEL_FREE');
+    if (levels.length > 0) {
+      body.priceLevels = levels;
+    }
   }
 
   const { data } = await axios.post(SEARCH_TEXT_URL, body, {
