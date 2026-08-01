@@ -8,13 +8,24 @@ import { useSession } from '../context/SessionContext';
 // iOS/Android via Expo Go). This keeps `expo start --web` usable for quick testing.
 const ZONES = ['north', 'south', 'east', 'west', 'central'];
 
+// Plain DOM <input> elements (not RN components) need a plain style object, not StyleSheet.create.
+const webInputStyle = {
+  flex: 1,
+  border: '1px solid #ddd',
+  borderRadius: 10,
+  padding: 14,
+  fontSize: 16,
+  fontFamily: 'inherit',
+};
+
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();
   const [mode, setMode] = useState('pin'); // 'pin' | 'zone'
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [zone, setZone] = useState(null);
-  const [deadlineMinutes, setDeadlineMinutes] = useState('');
+  const [deadlineDateStr, setDeadlineDateStr] = useState(''); // YYYY-MM-DD
+  const [deadlineTimeStr, setDeadlineTimeStr] = useState(''); // HH:MM (24h)
   const [error, setError] = useState(null);
 
   async function handleSubmit() {
@@ -36,11 +47,17 @@ export default function MeetingPointScreen({ navigation }) {
       }
       payload.zone = zone;
     }
-    if (deadlineMinutes.trim()) {
-      const minutes = parseInt(deadlineMinutes, 10);
-      if (!Number.isNaN(minutes) && minutes > 0) {
-        payload.deadline = new Date(Date.now() + minutes * 60000).toISOString();
+    if (deadlineDateStr && deadlineTimeStr) {
+      const combined = new Date(`${deadlineDateStr}T${deadlineTimeStr}:00`);
+      if (Number.isNaN(combined.getTime())) {
+        setError('Enter a valid deadline date and time');
+        return;
       }
+      if (combined.getTime() <= Date.now()) {
+        setError('Deadline must be in the future');
+        return;
+      }
+      payload.deadline = combined.toISOString();
     }
 
     try {
@@ -95,14 +112,21 @@ export default function MeetingPointScreen({ navigation }) {
           </View>
         )}
 
-        <Text style={styles.label}>Deadline (optional, minutes from now)</Text>
-        <TextInput
-          style={styles.input}
-          value={deadlineMinutes}
-          onChangeText={(text) => setDeadlineMinutes(text.replace(/[^0-9]/g, ''))}
-          keyboardType="numeric"
-          placeholder="e.g. 15"
-        />
+        <Text style={styles.label}>Deadline (optional)</Text>
+        <View style={styles.dateTimeRow}>
+          <input
+            type="date"
+            value={deadlineDateStr}
+            onChange={(e) => setDeadlineDateStr(e.target.value)}
+            style={webInputStyle}
+          />
+          <input
+            type="time"
+            value={deadlineTimeStr}
+            onChange={(e) => setDeadlineTimeStr(e.target.value)}
+            style={webInputStyle}
+          />
+        </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -122,6 +146,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, color: '#666', marginTop: 4 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 16 },
   section: { gap: 8, marginBottom: 8 },
+  dateTimeRow: { flexDirection: 'row', gap: 8 },
   toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   toggleButton: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
   toggleButtonActive: { backgroundColor: '#222', borderColor: '#222' },

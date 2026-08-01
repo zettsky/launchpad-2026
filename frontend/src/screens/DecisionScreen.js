@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Linking, Activi
 import { CommonActions } from '@react-navigation/native';
 import { useSession } from '../context/SessionContext';
 import { api } from '../services/api';
-import RestaurantCard from '../components/RestaurantCard';
+import FlippableRestaurantCard from '../components/FlippableRestaurantCard';
 import { shareText } from '../services/share';
 
 function formatDistance(distanceM) {
@@ -63,7 +63,7 @@ export default function DecisionScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>It's decided! 🎉</Text>
-        <RestaurantCard restaurant={decided} />
+        <FlippableRestaurantCard restaurant={decided} />
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleDirections}>
           <Text style={styles.primaryButtonText}>Get directions</Text>

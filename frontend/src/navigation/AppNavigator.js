@@ -10,14 +10,15 @@ import WaitingRoomScreen from '../screens/WaitingRoomScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
 import SwipeScreen from '../screens/SwipeScreen';
 import DecisionScreen from '../screens/DecisionScreen';
+import HomeButton from '../components/HomeButton';
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Navigator screenOptions={{ headerShown: true, headerTitle: '', headerRight: () => <HomeButton /> }}>
+        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
         <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
         <Stack.Screen name="MeetingPoint" component={MeetingPointScreen} />

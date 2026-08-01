@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
 // npx expo install react-native-maps
@@ -11,6 +12,12 @@ import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplet
 
 const ZONES = ['north', 'south', 'east', 'west', 'central'];
 
+function formatDeadline(date) {
+  if (!date) return null;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();
   const [mode, setMode] = useState('pin'); // 'pin' | 'zone'
@@ -19,7 +26,8 @@ export default function MeetingPointScreen({ navigation }) {
     longitude: 103.8198,
   });
   const [zone, setZone] = useState(null);
-  const [deadlineMinutes, setDeadlineMinutes] = useState('');
+  const [deadlineDate, setDeadlineDate] = useState(null); // Date | null
+  const [pickerStep, setPickerStep] = useState(null); // null | 'date' | 'time'
   const [error, setError] = useState(null);
 
   async function getCurrentLocation() {
@@ -37,6 +45,46 @@ export default function MeetingPointScreen({ navigation }) {
     });
 }
 
+  function handleDateChange(event, selected) {
+    if (Platform.OS === 'android') {
+      setPickerStep(null);
+      if (event.type === 'dismissed') return;
+    }
+    if (selected) {
+      setDeadlineDate((prev) => {
+        const base = new Date(prev || Date.now());
+        base.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+        return base;
+      });
+    }
+    if (Platform.OS === 'android' && event.type !== 'dismissed') {
+      setPickerStep('time');
+    }
+  }
+
+  function handleTimeChange(event, selected) {
+    if (Platform.OS === 'android') {
+      setPickerStep(null);
+      if (event.type === 'dismissed') return;
+    }
+    if (selected) {
+      setDeadlineDate((prev) => {
+        const base = new Date(prev || Date.now());
+        base.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+        return base;
+      });
+    }
+  }
+
+  function confirmIOSStep() {
+    setPickerStep(pickerStep === 'date' ? 'time' : null);
+  }
+
+  function clearDeadline() {
+    setDeadlineDate(null);
+    setPickerStep(null);
+  }
+
   async function handleSubmit() {
     setError(null);
     const payload = {};
@@ -50,11 +98,12 @@ export default function MeetingPointScreen({ navigation }) {
       }
       payload.zone = zone;
     }
-    if (deadlineMinutes.trim()) {
-      const minutes = parseInt(deadlineMinutes, 10);
-      if (!Number.isNaN(minutes) && minutes > 0) {
-        payload.deadline = new Date(Date.now() + minutes * 60000).toISOString();
+    if (deadlineDate) {
+      if (deadlineDate.getTime() <= Date.now()) {
+        setError('Deadline must be in the future');
+        return;
       }
+      payload.deadline = deadlineDate.toISOString();
     }
 
     try {
@@ -158,14 +207,43 @@ export default function MeetingPointScreen({ navigation }) {
           </View>
         )}
 
-        <Text style={styles.label}>Deadline (optional, minutes from now)</Text>
-        <TextInput
-          style={styles.input}
-          value={deadlineMinutes}
-          onChangeText={(text) => setDeadlineMinutes(text.replace(/[^0-9]/g, ''))}
-          keyboardType="numeric"
-          placeholder="e.g. 15"
-        />
+        <Text style={styles.label}>Deadline (optional)</Text>
+        <TouchableOpacity style={styles.input} onPress={() => setPickerStep('date')}>
+          <Text style={{ fontSize: 16, color: deadlineDate ? '#000' : '#999' }}>
+            {deadlineDate ? formatDeadline(deadlineDate) : 'Tap to set date & time'}
+          </Text>
+        </TouchableOpacity>
+        {deadlineDate && (
+          <TouchableOpacity onPress={clearDeadline}>
+            <Text style={styles.clearLink}>Clear deadline</Text>
+          </TouchableOpacity>
+        )}
+
+        {pickerStep === 'date' && (
+          <DateTimePicker
+            value={deadlineDate || new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            onChange={handleDateChange}
+            minimumDate={new Date()}
+          />
+        )}
+        {pickerStep === 'time' && (
+          <DateTimePicker
+            value={deadlineDate || new Date()}
+            mode="time"
+            is24Hour={true}
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleTimeChange}
+          />
+        )}
+        {Platform.OS === 'ios' && pickerStep && (
+          <TouchableOpacity style={styles.doneButtonSmall} onPress={confirmIOSStep}>
+            <Text style={styles.doneButtonSmallText}>
+              {pickerStep === 'date' ? 'Next: pick time' : 'Done'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -182,7 +260,10 @@ const styles = StyleSheet.create({
   content: { padding: 24, gap: 12 },
   title: { fontSize: 24, fontWeight: '800', marginBottom: 8 },
   label: { fontSize: 14, color: '#666', marginTop: 4 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 16, justifyContent: 'center' },
+  clearLink: { color: '#ff5a5f', fontSize: 13, fontWeight: '600', marginTop: -6, marginBottom: 4 },
+  doneButtonSmall: { backgroundColor: '#222', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  doneButtonSmallText: { color: '#fff', fontWeight: '600' },
   section: { gap: 8, marginBottom: 8 },
   toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   toggleButton: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
@@ -198,4 +279,3 @@ const styles = StyleSheet.create({
   primaryButton: { backgroundColor: '#ff5a5f', paddingVertical: 16, borderRadius: 999, marginTop: 12 },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
 });
-// ignore
