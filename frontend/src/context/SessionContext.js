@@ -42,7 +42,7 @@ export function SessionProvider({ children }) {
     setCode(newCode);
     setMemberId(newMemberId);
     setIsHost(host);
-    setHasSubmittedPreferences(false);
+    // setHasSubmittedPreferences(false);
     setStoredSession({ code: newCode, memberId: newMemberId, host });
   }, []);
 
