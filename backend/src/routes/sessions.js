@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
 const { generateSessionCode } = require('../utils/codeGenerator');
 const { runMatching, resolveSwipeRound, resetForNextRound } = require('../services/matchingEngine');
+const { getPlaceDetails } = require('../services/placesService');
 const { broadcast } = require('../sockets');
 
 const router = express.Router();
@@ -15,7 +16,7 @@ function getSessionByCode(code) {
   return db.prepare('SELECT * FROM sessions WHERE code = ?').get(code);
 }
 
-function buildSnapshot(session) {
+async function buildSnapshot(session) {
   const memberCount = db
     .prepare('SELECT COUNT(*) as c FROM members WHERE session_id = ?')
     .get(session.id).c;
@@ -26,6 +27,7 @@ function buildSnapshot(session) {
   const snapshot = {
     sessionId: session.id,
     code: session.code,
+    groupName: session.group_name || null,
     state: session.state,
     mode: session.mode,
     swipeCount: session.swipe_count,
@@ -50,13 +52,34 @@ function buildSnapshot(session) {
     const decided = db
       .prepare('SELECT * FROM restaurant_candidates WHERE session_id = ? AND place_id = ?')
       .get(session.id, session.decided_place_id);
-    snapshot.decided = decided ? toClientCandidate(decided) : null;
+    if (decided) {
+      const client = toClientCandidate(decided);
+      try {
+        const details = await getPlaceDetails(session.decided_place_id);
+        client.formattedAddress = details.formattedAddress;
+      } catch (err) {
+        client.formattedAddress = null;
+      }
+      snapshot.decided = client;
+    } else {
+      snapshot.decided = null;
+    }
   }
 
   return snapshot;
 }
 
 function toClientCandidate(row) {
+  let photoUrl = null;
+  if (row.photo_ref) {
+    photoUrl = `/places/photo?ref=${encodeURIComponent(row.photo_ref)}`;
+  } else if (row.lat != null && row.lng != null) {
+    // No real photo available: fall back to a map-thumbnail proxy. If "Maps Static API"
+    // isn't enabled on the Google Cloud project, this URL 502s and the client falls back
+    // further to its own placeholder — see RestaurantCard's onError handling.
+    photoUrl = `/places/staticmap?lat=${row.lat}&lng=${row.lng}`;
+  }
+
   return {
     placeId: row.place_id,
     name: row.name,
@@ -66,7 +89,7 @@ function toClientCandidate(row) {
     distanceM: row.distance_m,
     lat: row.lat,
     lng: row.lng,
-    photoUrl: row.photo_ref ? `/places/photo?ref=${encodeURIComponent(row.photo_ref)}` : null,
+    photoUrl,
   };
 }
 
@@ -78,7 +101,7 @@ async function triggerMatching(session, mode, swipeCount) {
   );
   await runMatching(session.id);
   const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(session.id);
-  const snapshot = buildSnapshot(updated);
+  const snapshot = await buildSnapshot(updated);
   broadcast(session.code, updated.state === 'decided' ? 'session:decided' : 'candidates:ready', snapshot);
   return snapshot;
 }
@@ -109,26 +132,28 @@ function scheduleDeadline(session) {
 
 // POST /sessions — host creates a session
 router.post('/', (req, res) => {
-  const { hostDeviceId, displayName } = req.body;
+  const { hostDeviceId, displayName, groupName } = req.body;
   if (!hostDeviceId) return res.status(400).json({ error: 'hostDeviceId is required' });
+  if (!displayName || !displayName.trim()) return res.status(400).json({ error: 'Your name is required' });
+  if (!groupName || !groupName.trim()) return res.status(400).json({ error: 'Group name is required' });
 
   const sessionId = uuidv4();
   const code = generateSessionCode();
 
   db.prepare(
-    'INSERT INTO sessions (id, code, host_device_id, state) VALUES (?, ?, ?, ?)'
-  ).run(sessionId, code, hostDeviceId, 'open');
+    'INSERT INTO sessions (id, code, host_device_id, state, group_name) VALUES (?, ?, ?, ?, ?)'
+  ).run(sessionId, code, hostDeviceId, 'open', groupName.trim());
 
   const memberId = uuidv4();
   db.prepare(
     'INSERT INTO members (id, session_id, device_id, display_name, is_host) VALUES (?, ?, ?, ?, 1)'
-  ).run(memberId, sessionId, hostDeviceId, displayName || null);
+  ).run(memberId, sessionId, hostDeviceId, displayName.trim());
 
-  res.status(201).json({ sessionId, code, hostDeviceId, memberId });
+  res.status(201).json({ sessionId, code, hostDeviceId, memberId, groupName: groupName.trim() });
 });
 
 // POST /sessions/:code/join — member joins via code
-router.post('/:code/join', (req, res) => {
+router.post('/:code/join', async (req, res) => {
   const session = getSessionByCode(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
@@ -148,11 +173,11 @@ router.post('/:code/join', (req, res) => {
     broadcast(session.code, 'member:joined', { memberCount: db.prepare('SELECT COUNT(*) as c FROM members WHERE session_id = ?').get(session.id).c });
   }
 
-  res.json({ memberId: member.id, snapshot: buildSnapshot(session) });
+  res.json({ memberId: member.id, snapshot: await buildSnapshot(session) });
 });
 
 // POST /sessions/:code/meeting-point — host sets pin or zone, optional deadline
-router.post('/:code/meeting-point', (req, res) => {
+router.post('/:code/meeting-point', async (req, res) => {
   const session = getSessionByCode(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
@@ -168,7 +193,7 @@ router.post('/:code/meeting-point', (req, res) => {
   const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(session.id);
   scheduleDeadline(updated);
 
-  const snapshot = buildSnapshot(updated);
+  const snapshot = await buildSnapshot(updated);
   broadcast(session.code, 'meeting-point:set', snapshot);
   res.json(snapshot);
 });
@@ -239,14 +264,14 @@ router.post('/:code/start-matching', async (req, res) => {
 });
 
 // GET /sessions/:code — fetch current snapshot (reconnect support)
-router.get('/:code', (req, res) => {
+router.get('/:code', async (req, res) => {
   const session = getSessionByCode(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  res.json(buildSnapshot(session));
+  res.json(await buildSnapshot(session));
 });
 
 // POST /sessions/:code/swipe — member casts a swipe vote on a candidate
-router.post('/:code/swipe', (req, res) => {
+router.post('/:code/swipe', async (req, res) => {
   const session = getSessionByCode(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   if (session.state !== 'deciding') {
@@ -268,7 +293,7 @@ router.post('/:code/swipe', (req, res) => {
 
   if (decidedPlaceId) {
     const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(session.id);
-    const snapshot = buildSnapshot(updated);
+    const snapshot = await buildSnapshot(updated);
     broadcast(session.code, 'session:decided', snapshot);
     return res.json(snapshot);
   }
@@ -281,7 +306,7 @@ router.post('/:code/swipe', (req, res) => {
 });
 
 // POST /sessions/:code/run-it-back — host resets a decided session so the group can pick again
-router.post('/:code/run-it-back', (req, res) => {
+router.post('/:code/run-it-back', async (req, res) => {
   const session = getSessionByCode(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
@@ -297,7 +322,7 @@ router.post('/:code/run-it-back', (req, res) => {
   }
 
   const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(session.id);
-  const snapshot = buildSnapshot(updated);
+  const snapshot = await buildSnapshot(updated);
   broadcast(session.code, 'session:reset', snapshot);
   res.json(snapshot);
 });

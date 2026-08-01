@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { API_BASE_URL } from '../services/api';
 
@@ -9,6 +9,7 @@ function formatPrice(priceLevel) {
 
 export default function FlippableRestaurantCard({ restaurant }) {
   const [flipped, setFlipped] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
 
   function handleFlip() {
@@ -27,11 +28,20 @@ export default function FlippableRestaurantCard({ restaurant }) {
   const location = restaurant.formattedAddress || (restaurant.lat != null ? `${restaurant.lat.toFixed(5)}, ${restaurant.lng.toFixed(5)}` : 'Location unavailable');
   const cuisineLabel = restaurant.cuisineTag ? restaurant.cuisineTag.replace(/_/g, ' ') : 'Unknown cuisine';
 
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUri]);
+
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={handleFlip} style={styles.wrap}>
       <Animated.View style={[styles.card, { transform: [{ rotateY: frontInterpolate }] }]}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.photo} resizeMode="cover" />
+        {imageUri && !imageFailed ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.photo}
+            resizeMode="cover"
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <View style={[styles.photo, styles.photoPlaceholder]}>
             <Text style={styles.placeholderEmoji}>🍽️</Text>

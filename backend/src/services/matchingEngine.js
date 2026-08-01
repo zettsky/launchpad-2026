@@ -93,9 +93,11 @@ async function runMatching(sessionId) {
   if (!session) throw new Error('Session not found');
 
   const preferences = db.prepare('SELECT * FROM preferences WHERE session_id = ?').all(sessionId);
-  if (preferences.length === 0) throw new Error('No preferences submitted yet');
-
-  const aggregate = aggregatePreferences(preferences);
+  // If the deadline hits before anyone submits, fall back to a pure proximity search
+  // (no cuisine/budget filter) rather than blocking the group from deciding at all.
+  const aggregate = preferences.length > 0
+    ? aggregatePreferences(preferences)
+    : { topCuisines: [], budgetRange: { min: -Infinity, max: Infinity }, dietary: [] };
   const ranked = await findCandidates(session, aggregate);
 
   if (ranked.length === 0) {

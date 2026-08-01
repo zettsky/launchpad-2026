@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
+import SwipeToDeleteRow from '../components/SwipeToDeleteRow';
 
 export default function HomeScreen({ navigation }) {
   const { deviceId, code, snapshot, startSession, resetSession } = useSession();
@@ -41,7 +42,7 @@ export default function HomeScreen({ navigation }) {
           <TextInput
             style={styles.joinInput}
             value={joinCode}
-            onChangeText={setJoinCode}
+            onChangeText={(text) => setJoinCode(text.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
             placeholder="ABC123"
             autoCapitalize="characters"
             maxLength={6}
@@ -56,20 +57,19 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
 
         {code && (
-          <TouchableOpacity style={styles.sessionCard} onPress={() => navigation.navigate('WaitingRoom')}>
-            <TouchableOpacity style={styles.dismissButton} onPress={resetSession}>
-              <Text style={styles.dismissText}>×</Text>
+          <SwipeToDeleteRow onDelete={resetSession}>
+            <TouchableOpacity style={styles.sessionCard} onPress={() => navigation.navigate('WaitingRoom')}>
+              <Text style={styles.sessionCode}>{snapshot?.groupName || `Session ${code}`}</Text>
+              <View style={styles.sessionRow}>
+                <Text style={styles.sessionMeta}>
+                  Deadline: {snapshot?.deadline ? new Date(snapshot.deadline).toLocaleString() : 'None'}
+                </Text>
+                <Text style={styles.sessionMeta}>
+                  Selected: {snapshot?.preferencesCount ?? 0}/{snapshot?.memberCount ?? 0}
+                </Text>
+              </View>
             </TouchableOpacity>
-            <Text style={styles.sessionCode}>Session {code}</Text>
-            <View style={styles.sessionRow}>
-              <Text style={styles.sessionMeta}>
-                Deadline: {snapshot?.deadline ? new Date(snapshot.deadline).toLocaleString() : 'None'}
-              </Text>
-              <Text style={styles.sessionMeta}>
-                Selected: {snapshot?.preferencesCount ?? 0}/{snapshot?.memberCount ?? 0}
-              </Text>
-            </View>
-          </TouchableOpacity>
+          </SwipeToDeleteRow>
         )}
       </View>
     </SafeAreaView>
@@ -122,8 +122,6 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '100%',
   },
-  dismissButton: { position: 'absolute', top: 12, right: 16 },
-  dismissText: { fontSize: 20, color: '#888' },
   sessionCode: { fontSize: 16, color: '#333', marginBottom: 12 },
   sessionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   sessionMeta: { fontSize: 14, color: '#555' },

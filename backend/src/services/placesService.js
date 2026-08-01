@@ -92,6 +92,48 @@ async function searchRestaurants({ lat, lng, radiusMeters, cuisines, minPrice, m
   }));
 }
 
+const PLACE_DETAILS_FIELD_MASK = 'id,formattedAddress';
+
+// Fetched on-demand only for the decided restaurant (not the whole shortlist), so no
+// schema/caching is needed for this.
+async function getPlaceDetails(placeId) {
+  if (!API_KEY) {
+    throw new Error('GOOGLE_MAPS_API_KEY is not configured');
+  }
+  const { data } = await axios.get(`https://places.googleapis.com/v1/places/${placeId}`, {
+    headers: {
+      'X-Goog-Api-Key': API_KEY,
+      'X-Goog-FieldMask': PLACE_DETAILS_FIELD_MASK,
+    },
+  });
+  return {
+    formattedAddress: data.formattedAddress || null,
+  };
+}
+
+const STATIC_MAP_URL = 'https://maps.googleapis.com/maps/api/staticmap';
+
+// Fallback visual for when Places Photos isn't available (see fetchPhotoStream below):
+// a small map thumbnail centered on the restaurant. Requires "Maps Static API" to be
+// enabled in Google Cloud Console — until then this call fails and callers should treat
+// that as normal, falling back further to a plain placeholder.
+async function fetchStaticMapStream(lat, lng, width = 400, height = 300) {
+  if (!API_KEY) {
+    throw new Error('GOOGLE_MAPS_API_KEY is not configured');
+  }
+  const response = await axios.get(STATIC_MAP_URL, {
+    params: {
+      center: `${lat},${lng}`,
+      zoom: 16,
+      size: `${width}x${height}`,
+      markers: `color:red|${lat},${lng}`,
+      key: API_KEY,
+    },
+    responseType: 'stream',
+  });
+  return response;
+}
+
 async function fetchPhotoStream(photoRef, maxWidthPx = 800) {
   if (!API_KEY) {
     throw new Error('GOOGLE_MAPS_API_KEY is not configured');
@@ -103,4 +145,4 @@ async function fetchPhotoStream(photoRef, maxWidthPx = 800) {
   return response;
 }
 
-module.exports = { searchRestaurants, fetchPhotoStream, haversineMeters };
+module.exports = { searchRestaurants, fetchPhotoStream, fetchStaticMapStream, haversineMeters, getPlaceDetails };

@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   code TEXT NOT NULL UNIQUE,
   host_device_id TEXT NOT NULL,
+  group_name TEXT NOT NULL DEFAULT '',
   state TEXT NOT NULL DEFAULT 'open' CHECK (state IN ('open', 'collecting', 'deciding', 'decided')),
   mode TEXT CHECK (mode IN ('auto', 'swipe')),
   swipe_count INTEGER,

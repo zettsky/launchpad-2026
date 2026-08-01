@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { API_BASE_URL } from '../services/api';
 
@@ -14,11 +14,21 @@ function formatPrice(priceLevel) {
 
 export default function RestaurantCard({ restaurant }) {
   const imageUri = restaurant.photoUrl ? `${API_BASE_URL}${restaurant.photoUrl}` : null;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUri]);
 
   return (
     <View style={styles.card}>
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.photo} resizeMode="cover" />
+      {imageUri && !imageFailed ? (
+        <Image
+          source={{ uri: imageUri }}
+          style={styles.photo}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+        />
       ) : (
         <View style={[styles.photo, styles.photoPlaceholder]}>
           <Text style={styles.placeholderEmoji}>🍽️</Text>

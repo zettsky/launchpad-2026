@@ -15,8 +15,8 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  createSession: (hostDeviceId, displayName) =>
-    request('/sessions', { method: 'POST', body: JSON.stringify({ hostDeviceId, displayName }) }),
+  createSession: (hostDeviceId, displayName, groupName) =>
+    request('/sessions', { method: 'POST', body: JSON.stringify({ hostDeviceId, displayName, groupName }) }),
 
   joinSession: (code, deviceId, displayName) =>
     request(`/sessions/${code}/join`, {

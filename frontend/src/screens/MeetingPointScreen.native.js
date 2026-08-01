@@ -235,6 +235,11 @@ export default function MeetingPointScreen({ navigation }) {
             is24Hour={true}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleTimeChange}
+            minimumDate={
+              deadlineDate && deadlineDate.toDateString() === new Date().toDateString()
+                ? new Date()
+                : undefined
+            }
           />
         )}
         {Platform.OS === 'ios' && pickerStep && (

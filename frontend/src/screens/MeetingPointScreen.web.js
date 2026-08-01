@@ -18,6 +18,8 @@ const webInputStyle = {
   fontFamily: 'inherit',
 };
 
+const todayStr = new Date().toISOString().split('T')[0];
+
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();
   const [mode, setMode] = useState('pin'); // 'pin' | 'zone'
@@ -118,6 +120,7 @@ export default function MeetingPointScreen({ navigation }) {
             type="date"
             value={deadlineDateStr}
             onChange={(e) => setDeadlineDateStr(e.target.value)}
+            min={todayStr}
             style={webInputStyle}
           />
           <input
