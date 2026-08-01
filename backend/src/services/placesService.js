@@ -92,10 +92,11 @@ async function searchRestaurants({ lat, lng, radiusMeters, cuisines, minPrice, m
   }));
 }
 
-const PLACE_DETAILS_FIELD_MASK = 'id,formattedAddress';
+const PLACE_DETAILS_FIELD_MASK = 'id,formattedAddress,location';
 
 // Fetched on-demand only for the decided restaurant (not the whole shortlist), so no
-// schema/caching is needed for this.
+// schema/caching is needed for this. Also used by the meeting-point autocomplete to
+// resolve a selected suggestion's coordinates.
 async function getPlaceDetails(placeId) {
   if (!API_KEY) {
     throw new Error('GOOGLE_MAPS_API_KEY is not configured');
@@ -108,7 +109,51 @@ async function getPlaceDetails(placeId) {
   });
   return {
     formattedAddress: data.formattedAddress || null,
+    lat: data.location?.latitude ?? null,
+    lng: data.location?.longitude ?? null,
   };
+}
+
+const AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
+// Singapore centre — same fallback reference used for zone-based restaurant search bias.
+const AUTOCOMPLETE_BIAS = { lat: 1.3521, lng: 103.8198 };
+
+// Meeting-point location search-as-you-type. Uses Places API (New) autocomplete, not the
+// legacy Autocomplete API `react-native-google-places-autocomplete` defaults to — that
+// legacy endpoint isn't enabled on this project (same restriction hit elsewhere for
+// searchText), which is why the old implementation returned no suggestions at all.
+async function searchAutocomplete(input) {
+  if (!API_KEY) {
+    throw new Error('GOOGLE_MAPS_API_KEY is not configured');
+  }
+  if (!input || !input.trim()) return [];
+
+  const { data } = await axios.post(
+    AUTOCOMPLETE_URL,
+    {
+      input,
+      locationBias: {
+        circle: {
+          center: { latitude: AUTOCOMPLETE_BIAS.lat, longitude: AUTOCOMPLETE_BIAS.lng },
+          radius: 30000,
+        },
+      },
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY,
+      },
+    }
+  );
+
+  return (data.suggestions || [])
+    .filter((s) => s.placePrediction)
+    .map((s) => ({
+      placeId: s.placePrediction.placeId,
+      mainText: s.placePrediction.structuredFormat?.mainText?.text || s.placePrediction.text?.text || '',
+      secondaryText: s.placePrediction.structuredFormat?.secondaryText?.text || '',
+    }));
 }
 
 const STATIC_MAP_URL = 'https://maps.googleapis.com/maps/api/staticmap';
@@ -145,4 +190,11 @@ async function fetchPhotoStream(photoRef, maxWidthPx = 800) {
   return response;
 }
 
-module.exports = { searchRestaurants, fetchPhotoStream, fetchStaticMapStream, haversineMeters, getPlaceDetails };
+module.exports = {
+  searchRestaurants,
+  fetchPhotoStream,
+  fetchStaticMapStream,
+  haversineMeters,
+  getPlaceDetails,
+  searchAutocomplete,
+};

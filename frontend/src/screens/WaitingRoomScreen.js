@@ -3,11 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicat
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
 import { shareText } from '../services/share';
+import { useTheme } from '../context/ThemeContext';
 
 export default function WaitingRoomScreen({ navigation }) {
   const { code, deviceId, isHost, snapshot, hasSubmittedPreferences } = useSession();
+  const { colors: COLORS, commonStyles } = useTheme();
+  const styles = getStyles(COLORS);
   const [mode, setMode] = useState('swipe');
-  const [swipeCount, setSwipeCount] = useState(6);
+  const [swipeCount, setSwipeCount] = useState(5);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -21,7 +24,7 @@ export default function WaitingRoomScreen({ navigation }) {
   }, [snapshot?.state, navigation]);
 
   async function handleShare() {
-    await shareText(`Join my Launchpad session! Code: ${code}`);
+    await shareText(`Join my EatWhere! session! Code: ${code}`);
   }
 
   async function handleStartMatching() {
@@ -49,7 +52,7 @@ export default function WaitingRoomScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.codeLabel}>Session code</Text>
+        <Text style={styles.codeLabel}>Your Code:</Text>
         <Text style={styles.code}>{code}</Text>
         <TouchableOpacity onPress={handleShare}>
           <Text style={styles.shareLink}>Share code</Text>
@@ -59,8 +62,8 @@ export default function WaitingRoomScreen({ navigation }) {
 
         {!meetingPointSet && (
           isHost ? (
-            <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('MeetingPoint')}>
-              <Text style={styles.primaryButtonText}>Set meeting point</Text>
+            <TouchableOpacity style={commonStyles.filledButton} onPress={() => navigation.navigate('MeetingPoint')}>
+              <Text style={commonStyles.filledButtonText}>Set meeting point</Text>
             </TouchableOpacity>
           ) : (
             <Text style={styles.status}>Waiting for the host to set the meeting point…</Text>
@@ -68,20 +71,20 @@ export default function WaitingRoomScreen({ navigation }) {
         )}
 
         {meetingPointSet && !hasSubmittedPreferences && (
-          <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('Preferences')}>
-            <Text style={styles.primaryButtonText}>Submit your preferences</Text>
+          <TouchableOpacity
+            style={[commonStyles.filledButton, styles.idLikeButton]}
+            onPress={() => navigation.navigate('Preferences')}
+          >
+            <Text style={commonStyles.filledButtonText}>I'd like...</Text>
           </TouchableOpacity>
         )}
 
         {meetingPointSet && hasSubmittedPreferences && (
-          <Text style={styles.status}>
-            {snapshot.preferencesCount}/{snapshot.memberCount} submitted preferences
-          </Text>
+          <Text style={styles.status}>Preferences submitted!</Text>
         )}
 
         {isHost && meetingPointSet && (
           <View style={styles.hostControls}>
-            <Text style={styles.label}>How should we decide?</Text>
             <View style={styles.row}>
               <TouchableOpacity
                 style={[styles.segment, mode === 'auto' && styles.segmentActive]}
@@ -93,7 +96,7 @@ export default function WaitingRoomScreen({ navigation }) {
                 style={[styles.segment, mode === 'swipe' && styles.segmentActive]}
                 onPress={() => setMode('swipe')}
               >
-                <Text style={[styles.segmentText, mode === 'swipe' && styles.segmentTextActive]}>Swipe together</Text>
+                <Text style={[styles.segmentText, mode === 'swipe' && styles.segmentTextActive]}>Group Swipe</Text>
               </TouchableOpacity>
             </View>
 
@@ -114,14 +117,14 @@ export default function WaitingRoomScreen({ navigation }) {
             {error && <Text style={styles.error}>{error}</Text>}
 
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={commonStyles.outlineButton}
               onPress={handleStartMatching}
               disabled={starting || snapshot.preferencesCount === 0}
             >
               {starting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={COLORS.primary} />
               ) : (
-                <Text style={styles.primaryButtonText}>Find restaurants</Text>
+                <Text style={commonStyles.outlineButtonText}>Eat Where?</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -131,22 +134,22 @@ export default function WaitingRoomScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { flex: 1, padding: 24, gap: 10, alignItems: 'center', justifyContent: 'center' },
-  codeLabel: { fontSize: 14, color: '#666' },
-  code: { fontSize: 36, fontWeight: '800', letterSpacing: 6 },
-  shareLink: { color: '#ff5a5f', fontWeight: '600', marginBottom: 8 },
-  memberCount: { fontSize: 15, color: '#333', marginBottom: 8 },
-  status: { fontSize: 15, color: '#555', textAlign: 'center', marginVertical: 8 },
-  hostControls: { width: '100%', marginTop: 16, gap: 8 },
-  label: { fontSize: 14, color: '#666' },
-  row: { flexDirection: 'row', gap: 8 },
-  segment: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  segmentActive: { backgroundColor: '#222', borderColor: '#222' },
-  segmentText: { fontWeight: '600', color: '#333' },
-  segmentTextActive: { color: '#fff' },
-  error: { color: '#d33', fontSize: 14 },
-  primaryButton: { backgroundColor: '#ff5a5f', paddingVertical: 16, borderRadius: 999, marginTop: 8, width: '100%' },
-  primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-});
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: COLORS.background },
+    content: { flex: 1, padding: 24, gap: 10, alignItems: 'center', justifyContent: 'center' },
+    codeLabel: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+    code: { fontSize: 40, fontWeight: '900', letterSpacing: 6, color: COLORS.primaryDark },
+    shareLink: { color: COLORS.primaryDark, fontWeight: '600', marginBottom: 8 },
+    memberCount: { fontSize: 15, color: COLORS.textMuted, marginBottom: 8 },
+    status: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center', marginVertical: 8 },
+    idLikeButton: { width: '85%', paddingHorizontal: 40 },
+    hostControls: { width: '100%', marginTop: 16, gap: 8 },
+    row: { flexDirection: 'row', gap: 8 },
+    segment: { flex: 1, paddingVertical: 12, borderRadius: 999, backgroundColor: COLORS.chipInactive, alignItems: 'center' },
+    segmentActive: { backgroundColor: COLORS.primary },
+    segmentText: { fontWeight: '700', color: COLORS.text },
+    segmentTextActive: { color: '#000' },
+    error: { color: '#d33', fontSize: 14 },
+  });
+}

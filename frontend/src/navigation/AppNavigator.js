@@ -1,6 +1,7 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from '../context/ThemeContext';
 
 import HomeScreen from '../screens/HomeScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
@@ -15,8 +16,22 @@ import HomeButton from '../components/HomeButton';
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
+  const { mode, colors } = useTheme();
+
+  const navTheme = {
+    ...(mode === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(mode === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+      background: colors.background,
+      card: colors.background,
+      text: colors.text,
+      border: colors.primary,
+      primary: colors.primary,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       <Stack.Navigator screenOptions={{ headerShown: true, headerTitle: '', headerRight: () => <HomeButton /> }}>
         <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateSession" component={CreateSessionScreen} />

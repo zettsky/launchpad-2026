@@ -50,4 +50,12 @@ export const api = {
       body: JSON.stringify({ hostDeviceId }),
     }),
 
+  dismissSession: (code, memberId) =>
+    request(`/sessions/${code}/dismiss`, { method: 'POST', body: JSON.stringify({ memberId }) }),
+
+  listDeviceSessions: (deviceId) => request(`/devices/${deviceId}/sessions`),
+
+  autocompleteLocation: (input) => request(`/places/autocomplete?input=${encodeURIComponent(input)}`),
+
+  getPlaceLocation: (placeId) => request(`/places/details?placeId=${encodeURIComponent(placeId)}`),
 };

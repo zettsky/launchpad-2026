@@ -12,7 +12,8 @@ export default function SwipeToDeleteRow({ children, onDelete }) {
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 8,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
       onPanResponderMove: (_, gesture) => {
         const next = Math.min(0, Math.max(-DELETE_WIDTH, currentOffset.current + gesture.dx));
         translateX.setValue(next);

@@ -2,21 +2,22 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
-import CuisineMultiSelect from '../components/CuisineMultiSelect';
-import BudgetSelector, { BUDGET_TIERS } from '../components/BudgetSelector';
+import DropdownSelect from '../components/DropdownSelect';
+import { CUISINE_OPTIONS } from '../components/CuisineMultiSelect';
+import { BUDGET_TIERS } from '../components/BudgetSelector';
+import { useTheme } from '../context/ThemeContext';
 
+const BUDGET_LABELS = BUDGET_TIERS.map((t) => t.label);
 const DIETARY_OPTIONS = ['Halal', 'Vegetarian', 'Allergies'];
 
 export default function PreferencesScreen({ navigation }) {
   const { code, memberId, setHasSubmittedPreferences } = useSession();
+  const { colors: COLORS, commonStyles } = useTheme();
+  const styles = getStyles(COLORS);
   const [cuisines, setCuisines] = useState([]);
-  const [budget, setBudget] = useState(BUDGET_TIERS[1]);
+  const [budgetLabel, setBudgetLabel] = useState([BUDGET_LABELS[1]]);
   const [dietary, setDietary] = useState([]);
   const [error, setError] = useState(null);
-
-  function toggleDietary(option) {
-    setDietary((prev) => (prev.includes(option) ? prev.filter((d) => d !== option) : [...prev, option]));
-  }
 
   async function handleSubmit() {
     if (cuisines.length === 0) {
@@ -24,6 +25,7 @@ export default function PreferencesScreen({ navigation }) {
       return;
     }
     setError(null);
+    const budget = BUDGET_TIERS.find((t) => t.label === budgetLabel[0]) || BUDGET_TIERS[1];
     try {
       await api.submitPreferences(code, {
         memberId,
@@ -42,53 +44,56 @@ export default function PreferencesScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Your preferences</Text>
-        <Text style={styles.note}>Submitted anonymously — no one else sees your individual picks.</Text>
+        <Text style={styles.title}>I'd like...</Text>
+        <Text style={styles.note}>Submitted anonymously.</Text>
 
-        <Text style={styles.label}>Cuisine (pick any)</Text>
-        <CuisineMultiSelect selected={cuisines} onChange={setCuisines} />
+        <Text style={styles.label}>Cuisine:</Text>
+        <DropdownSelect
+          label="Pick cuisines"
+          options={CUISINE_OPTIONS}
+          selected={cuisines}
+          onChange={setCuisines}
+          multi
+          placeholder="What are you craving?"
+        />
 
         <Text style={styles.label}>Budget</Text>
-        <BudgetSelector value={budget} onChange={setBudget} />
+        <DropdownSelect
+          label="Pick a budget"
+          options={BUDGET_LABELS}
+          selected={budgetLabel}
+          onChange={setBudgetLabel}
+          multi={false}
+          placeholder="What's your budget?"
+        />
 
-        <Text style={styles.label}>Dietary restrictions (optional)</Text>
-        <View style={styles.dietaryRow}>
-          {DIETARY_OPTIONS.map((option) => {
-            const active = dietary.includes(option);
-            return (
-              <TouchableOpacity
-                key={option}
-                style={[styles.dietaryChip, active && styles.dietaryChipActive]}
-                onPress={() => toggleDietary(option)}
-              >
-                <Text style={[styles.dietaryText, active && styles.dietaryTextActive]}>{option}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <Text style={styles.label}>Dietary restrictions</Text>
+        <DropdownSelect
+          label="Dietary restrictions"
+          options={DIETARY_OPTIONS}
+          selected={dietary}
+          onChange={setDietary}
+          multi
+          placeholder="Any restrictions?"
+        />
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>Submit</Text>
+        <TouchableOpacity style={commonStyles.outlineButton} onPress={handleSubmit}>
+          <Text style={commonStyles.outlineButtonText}>Submit</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 24, gap: 12 },
-  title: { fontSize: 24, fontWeight: '800' },
-  note: { fontSize: 13, color: '#888', marginBottom: 8 },
-  label: { fontSize: 14, color: '#666', marginTop: 8, fontWeight: '600' },
-  dietaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dietaryChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: '#ddd' },
-  dietaryChipActive: { backgroundColor: '#222', borderColor: '#222' },
-  dietaryText: { color: '#333' },
-  dietaryTextActive: { color: '#fff' },
-  error: { color: '#d33', fontSize: 14 },
-  primaryButton: { backgroundColor: '#ff5a5f', paddingVertical: 16, borderRadius: 999, marginTop: 16 },
-  primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-});
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: COLORS.background },
+    content: { padding: 24, gap: 10 },
+    title: { fontSize: 40, fontWeight: '900', color: COLORS.text },
+    note: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
+    label: { fontSize: 16, color: COLORS.text, marginTop: 8 },
+    error: { color: '#d33', fontSize: 14 },
+  });
+}

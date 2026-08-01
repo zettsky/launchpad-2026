@@ -3,14 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Pla
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
+import { useTheme } from '../context/ThemeContext';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 // npx expo install react-native-maps
 // npx expo install expo-location
-// npm install react-native-google-places-autocomplete
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
-const ZONES = ['north', 'south', 'east', 'west', 'central'];
+const ZONES = ['north', 'east', 'south', 'west', 'central'];
 
 function formatDeadline(date) {
   if (!date) return null;
@@ -20,6 +20,8 @@ function formatDeadline(date) {
 
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();
+  const { colors: COLORS, commonStyles } = useTheme();
+  const styles = getStyles(COLORS);
   const [mode, setMode] = useState('pin'); // 'pin' | 'zone'
   const [selectedLocation, setSelectedLocation] = useState({
     latitude: 1.3521,
@@ -117,82 +119,66 @@ export default function MeetingPointScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Where's everyone meeting?</Text>
+        <Text style={styles.title}>Meet Where?</Text>
 
         <View style={styles.toggleRow}>
           <TouchableOpacity
             style={[styles.toggleButton, mode === 'pin' && styles.toggleButtonActive]}
             onPress={() => setMode('pin')}
           >
-            <Text style={[styles.toggleText, mode === 'pin' && styles.toggleTextActive]}>Exact address</Text>
+            <Text style={[styles.toggleText, mode === 'pin' && styles.toggleTextActive]}>Specific location</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.toggleButton, mode === 'zone' && styles.toggleButtonActive]}
             onPress={() => setMode('zone')}
           >
-            <Text style={[styles.toggleText, mode === 'zone' && styles.toggleTextActive]}>General zone</Text>
+            <Text style={[styles.toggleText, mode === 'zone' && styles.toggleTextActive]}>General Area</Text>
           </TouchableOpacity>
         </View>
 
-        {mode === 'pin' ? (
-          <View style={styles.section}>
-            <GooglePlacesAutocomplete
-              placeholder="Search for a meeting point"
-              fetchDetails={true}
-              onPress={(data, details = null) => {
-                if (details) {
-                  setSelectedLocation({
-                    latitude: details.geometry.location.lat,
-                    longitude: details.geometry.location.lng,
-                  });
-                }
-              }}
-              query={{
-                key: process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY,
-                language: "en",
-              }}
-              styles={{
-                textInput: styles.input,
-               }}
-            />
+        <View style={styles.card}>
+          {mode === 'pin' ? (
+            <View style={styles.section}>
+              <LocationAutocomplete
+                onSelectLocation={({ lat, lng }) => setSelectedLocation({ latitude: lat, longitude: lng })}
+              />
 
-            <MapView
-              style={{
-                height: 350,
-                borderRadius: 12,
-                marginTop: 15,
-              }}
-              region={{
-                latitude: selectedLocation.latitude,
-                longitude: selectedLocation.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-              onPress={(e) =>
-                setSelectedLocation(e.nativeEvent.coordinate)
-              }
-            >
-              <Marker
-                coordinate={selectedLocation}
-                draggable
-                onDragEnd={(e) =>
+              <MapView
+                style={{
+                  height: 300,
+                  borderRadius: 12,
+                  marginTop: 15,
+                }}
+                region={{
+                  latitude: selectedLocation.latitude,
+                  longitude: selectedLocation.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                onPress={(e) =>
                   setSelectedLocation(e.nativeEvent.coordinate)
                 }
-              />
-            </MapView>
+              >
+                <Marker
+                  coordinate={selectedLocation}
+                  draggable
+                  onDragEnd={(e) =>
+                    setSelectedLocation(e.nativeEvent.coordinate)
+                  }
+                />
+              </MapView>
 
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={getCurrentLocation}
-            >
-              <Text style={styles.primaryButtonText}>
-                📍 Use Current Location
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={commonStyles.filledButton}
+                onPress={getCurrentLocation}
+              >
+                <Text style={commonStyles.filledButtonText}>
+                  📍 Use Current Location
+                </Text>
+              </TouchableOpacity>
 
-          </View>
-        ) : (
-          <View style={styles.section}>
+            </View>
+          ) : (
             <View style={styles.zoneGrid}>
               {ZONES.map((z) => (
                 <TouchableOpacity
@@ -204,20 +190,22 @@ export default function MeetingPointScreen({ navigation }) {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-        )}
+          )}
 
-        <Text style={styles.label}>Deadline (optional)</Text>
-        <TouchableOpacity style={styles.input} onPress={() => setPickerStep('date')}>
-          <Text style={{ fontSize: 16, color: deadlineDate ? '#000' : '#999' }}>
-            {deadlineDate ? formatDeadline(deadlineDate) : 'Tap to set date & time'}
-          </Text>
-        </TouchableOpacity>
-        {deadlineDate && (
-          <TouchableOpacity onPress={clearDeadline}>
-            <Text style={styles.clearLink}>Clear deadline</Text>
-          </TouchableOpacity>
-        )}
+          <View style={styles.deadlineRow}>
+            <Text style={styles.label}>Deadline:</Text>
+            <TouchableOpacity style={styles.deadlineInput} onPress={() => setPickerStep('date')}>
+              <Text style={{ fontSize: 14, color: deadlineDate ? COLORS.text : COLORS.textMuted }}>
+                {deadlineDate ? formatDeadline(deadlineDate) : 'Tap to set'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {deadlineDate && (
+            <TouchableOpacity onPress={clearDeadline}>
+              <Text style={styles.clearLink}>Clear deadline</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {pickerStep === 'date' && (
           <DateTimePicker
@@ -252,35 +240,38 @@ export default function MeetingPointScreen({ navigation }) {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>Continue</Text>
+        <TouchableOpacity style={commonStyles.outlineButton} onPress={handleSubmit}>
+          <Text style={commonStyles.outlineButtonText}>Next</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 24, gap: 12 },
-  title: { fontSize: 24, fontWeight: '800', marginBottom: 8 },
-  label: { fontSize: 14, color: '#666', marginTop: 4 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 16, justifyContent: 'center' },
-  clearLink: { color: '#ff5a5f', fontSize: 13, fontWeight: '600', marginTop: -6, marginBottom: 4 },
-  doneButtonSmall: { backgroundColor: '#222', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  doneButtonSmallText: { color: '#fff', fontWeight: '600' },
-  section: { gap: 8, marginBottom: 8 },
-  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  toggleButton: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  toggleButtonActive: { backgroundColor: '#222', borderColor: '#222' },
-  toggleText: { fontWeight: '600', color: '#333' },
-  toggleTextActive: { color: '#fff' },
-  zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  zoneButton: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: '#ddd' },
-  zoneButtonActive: { backgroundColor: '#ff5a5f', borderColor: '#ff5a5f' },
-  zoneText: { fontWeight: '600', color: '#333', textTransform: 'capitalize' },
-  zoneTextActive: { color: '#fff' },
-  error: { color: '#d33', fontSize: 14 },
-  primaryButton: { backgroundColor: '#ff5a5f', paddingVertical: 16, borderRadius: 999, marginTop: 12 },
-  primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-});
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: COLORS.background },
+    content: { padding: 24, gap: 12 },
+    title: { fontSize: 36, fontWeight: '900', color: COLORS.text },
+    label: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+    input: { borderWidth: 2, borderColor: COLORS.primary, borderRadius: 10, padding: 12, fontSize: 15, color: COLORS.text },
+    card: { borderWidth: 3, borderColor: COLORS.primary, borderRadius: 20, padding: 16, gap: 10 },
+    section: { gap: 8 },
+    toggleRow: { flexDirection: 'row', gap: 8 },
+    toggleButton: { flex: 1, paddingVertical: 14, borderRadius: 999, backgroundColor: COLORS.chipInactive, alignItems: 'center' },
+    toggleButtonActive: { backgroundColor: COLORS.primary },
+    toggleText: { fontWeight: '700', color: COLORS.text },
+    toggleTextActive: { color: '#000' },
+    zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    zoneButton: { width: '47%', paddingVertical: 16, borderRadius: 999, backgroundColor: COLORS.chipInactive, alignItems: 'center' },
+    zoneButtonActive: { backgroundColor: COLORS.primary },
+    zoneText: { fontWeight: '700', color: COLORS.text, textTransform: 'capitalize' },
+    zoneTextActive: { color: '#000' },
+    deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    deadlineInput: { flex: 1, borderWidth: 2, borderColor: COLORS.primary, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16 },
+    clearLink: { color: COLORS.danger, fontSize: 13, fontWeight: '600' },
+    doneButtonSmall: { backgroundColor: COLORS.primary, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+    doneButtonSmallText: { color: '#000', fontWeight: '700' },
+    error: { color: '#d33', fontSize: 14 },
+  });
+}

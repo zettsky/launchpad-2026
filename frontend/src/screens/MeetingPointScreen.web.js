@@ -2,26 +2,30 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
+import { useTheme } from '../context/ThemeContext';
 
-// Web fallback: react-native-maps and react-native-google-places-autocomplete don't run
-// in the browser (see MeetingPointScreen.native.js for the real map/search picker used on
-// iOS/Android via Expo Go). This keeps `expo start --web` usable for quick testing.
-const ZONES = ['north', 'south', 'east', 'west', 'central'];
-
-// Plain DOM <input> elements (not RN components) need a plain style object, not StyleSheet.create.
-const webInputStyle = {
-  flex: 1,
-  border: '1px solid #ddd',
-  borderRadius: 10,
-  padding: 14,
-  fontSize: 16,
-  fontFamily: 'inherit',
-};
+// Web fallback: react-native-maps doesn't run in the browser (see
+// MeetingPointScreen.native.js for the real map/search picker used on iOS/Android via
+// Expo Go). This keeps `expo start --web` usable for quick testing.
+const ZONES = ['north', 'east', 'south', 'west', 'central'];
 
 const todayStr = new Date().toISOString().split('T')[0];
 
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();
+  const { colors: COLORS, commonStyles } = useTheme();
+  const styles = getStyles(COLORS);
+  // Plain DOM <input> elements (not RN components) need a plain style object, not StyleSheet.create.
+  const webInputStyle = {
+    flex: 1,
+    border: `2px solid ${COLORS.primary}`,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: 'inherit',
+    backgroundColor: COLORS.cardBackground,
+    color: COLORS.text,
+  };
   const [mode, setMode] = useState('pin'); // 'pin' | 'zone'
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
@@ -73,7 +77,7 @@ export default function MeetingPointScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Where's everyone meeting?</Text>
+        <Text style={styles.title}>Meet Where?</Text>
         <Text style={styles.webNote}>(Web preview — the map/search picker is on the mobile app)</Text>
 
         <View style={styles.toggleRow}>
@@ -81,25 +85,25 @@ export default function MeetingPointScreen({ navigation }) {
             style={[styles.toggleButton, mode === 'pin' && styles.toggleButtonActive]}
             onPress={() => setMode('pin')}
           >
-            <Text style={[styles.toggleText, mode === 'pin' && styles.toggleTextActive]}>Exact address</Text>
+            <Text style={[styles.toggleText, mode === 'pin' && styles.toggleTextActive]}>Specific location</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.toggleButton, mode === 'zone' && styles.toggleButtonActive]}
             onPress={() => setMode('zone')}
           >
-            <Text style={[styles.toggleText, mode === 'zone' && styles.toggleTextActive]}>General zone</Text>
+            <Text style={[styles.toggleText, mode === 'zone' && styles.toggleTextActive]}>General Area</Text>
           </TouchableOpacity>
         </View>
 
-        {mode === 'pin' ? (
-          <View style={styles.section}>
-            <Text style={styles.label}>Latitude</Text>
-            <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numeric" placeholder="1.3048" />
-            <Text style={styles.label}>Longitude</Text>
-            <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numeric" placeholder="103.8318" />
-          </View>
-        ) : (
-          <View style={styles.section}>
+        <View style={styles.card}>
+          {mode === 'pin' ? (
+            <View style={styles.section}>
+              <Text style={styles.label}>Latitude</Text>
+              <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numeric" placeholder="1.3048" placeholderTextColor={COLORS.textMuted} />
+              <Text style={styles.label}>Longitude</Text>
+              <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numeric" placeholder="103.8318" placeholderTextColor={COLORS.textMuted} />
+            </View>
+          ) : (
             <View style={styles.zoneGrid}>
               {ZONES.map((z) => (
                 <TouchableOpacity
@@ -111,56 +115,49 @@ export default function MeetingPointScreen({ navigation }) {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-        )}
+          )}
 
-        <Text style={styles.label}>Deadline (optional)</Text>
-        <View style={styles.dateTimeRow}>
-          <input
-            type="date"
-            value={deadlineDateStr}
-            onChange={(e) => setDeadlineDateStr(e.target.value)}
-            min={todayStr}
-            style={webInputStyle}
-          />
-          <input
-            type="time"
-            value={deadlineTimeStr}
-            onChange={(e) => setDeadlineTimeStr(e.target.value)}
-            style={webInputStyle}
-          />
+          <View style={styles.deadlineRow}>
+            <Text style={styles.label}>deadline:</Text>
+            <View style={styles.dateTimeRow}>
+              <input type="date" value={deadlineDateStr} onChange={(e) => setDeadlineDateStr(e.target.value)} min={todayStr} style={webInputStyle} />
+              <input type="time" value={deadlineTimeStr} onChange={(e) => setDeadlineTimeStr(e.target.value)} style={webInputStyle} />
+            </View>
+          </View>
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>Continue</Text>
+        <TouchableOpacity style={commonStyles.outlineButton} onPress={handleSubmit}>
+          <Text style={commonStyles.outlineButtonText}>Next</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 24, gap: 12 },
-  title: { fontSize: 24, fontWeight: '800', marginBottom: 8 },
-  webNote: { fontSize: 12, color: '#999', marginTop: -8, marginBottom: 8 },
-  label: { fontSize: 14, color: '#666', marginTop: 4 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 16 },
-  section: { gap: 8, marginBottom: 8 },
-  dateTimeRow: { flexDirection: 'row', gap: 8 },
-  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  toggleButton: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  toggleButtonActive: { backgroundColor: '#222', borderColor: '#222' },
-  toggleText: { fontWeight: '600', color: '#333' },
-  toggleTextActive: { color: '#fff' },
-  zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  zoneButton: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: '#ddd' },
-  zoneButtonActive: { backgroundColor: '#ff5a5f', borderColor: '#ff5a5f' },
-  zoneText: { fontWeight: '600', color: '#333', textTransform: 'capitalize' },
-  zoneTextActive: { color: '#fff' },
-  error: { color: '#d33', fontSize: 14 },
-  primaryButton: { backgroundColor: '#ff5a5f', paddingVertical: 16, borderRadius: 999, marginTop: 12 },
-  primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-});
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: COLORS.background },
+    content: { padding: 24, gap: 12 },
+    title: { fontSize: 36, fontWeight: '900', color: COLORS.text },
+    webNote: { fontSize: 12, color: COLORS.textMuted, marginTop: -6, marginBottom: 4 },
+    label: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+    input: { borderWidth: 2, borderColor: COLORS.primary, borderRadius: 10, padding: 12, fontSize: 15, color: COLORS.text },
+    card: { borderWidth: 3, borderColor: COLORS.primary, borderRadius: 20, padding: 16, gap: 12 },
+    section: { gap: 8 },
+    toggleRow: { flexDirection: 'row', gap: 8 },
+    toggleButton: { flex: 1, paddingVertical: 14, borderRadius: 999, backgroundColor: COLORS.chipInactive, alignItems: 'center' },
+    toggleButtonActive: { backgroundColor: COLORS.primary },
+    toggleText: { fontWeight: '700', color: COLORS.text },
+    toggleTextActive: { color: '#000' },
+    zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    zoneButton: { width: '47%', paddingVertical: 16, borderRadius: 999, backgroundColor: COLORS.chipInactive, alignItems: 'center' },
+    zoneButtonActive: { backgroundColor: COLORS.primary },
+    zoneText: { fontWeight: '700', color: COLORS.text, textTransform: 'capitalize' },
+    zoneTextActive: { color: '#000' },
+    deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+    dateTimeRow: { flexDirection: 'row', gap: 8, flex: 1 },
+    error: { color: '#d33', fontSize: 14 },
+  });
+}

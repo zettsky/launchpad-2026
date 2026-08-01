@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS members (
   display_name TEXT,
   is_host INTEGER NOT NULL DEFAULT 0,
   joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+  dismissed_at TEXT,
   UNIQUE(session_id, device_id)
 );
 

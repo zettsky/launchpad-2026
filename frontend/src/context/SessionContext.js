@@ -55,6 +55,20 @@ export function SessionProvider({ children }) {
     clearStoredSession();
   }, []);
 
+  // "End Session": tells the backend this device is done with it (so it drops off this
+  // device's Home list for good), then clears local state. Unlike resetSession alone,
+  // this is permanent from this device's point of view.
+  const dismissActiveSession = useCallback(async () => {
+    if (codeRef.current && memberId) {
+      try {
+        await api.dismissSession(codeRef.current, memberId);
+      } catch (err) {
+        // best-effort: still clear local state even if the network call fails
+      }
+    }
+    resetSession();
+  }, [memberId, resetSession]);
+
   useEffect(() => {
     if (!code) return undefined;
 
@@ -95,6 +109,7 @@ export function SessionProvider({ children }) {
     setHasSubmittedPreferences,
     startSession,
     resetSession,
+    dismissActiveSession,
     refreshSnapshot,
   };
 

@@ -327,4 +327,21 @@ router.post('/:code/run-it-back', async (req, res) => {
   res.json(snapshot);
 });
 
+// POST /sessions/:code/dismiss — removes this session from one device's "ongoing
+// sessions" list (Home screen). Per-member, not global: other members keep seeing it.
+router.post('/:code/dismiss', (req, res) => {
+  const session = getSessionByCode(req.params.code);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const { memberId } = req.body;
+  if (!memberId) return res.status(400).json({ error: 'memberId is required' });
+
+  const result = db
+    .prepare("UPDATE members SET dismissed_at = datetime('now') WHERE id = ? AND session_id = ?")
+    .run(memberId, session.id);
+
+  if (result.changes === 0) return res.status(404).json({ error: 'Member not found in this session' });
+  res.json({ dismissed: true });
+});
+
 module.exports = router;

@@ -1,5 +1,17 @@
 env: load .env
-env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_GOOGLE_PLACES_KEY
+env: export EXPO_PUBLIC_API_URL
 Starting project at C:\Users\inessa\Desktop\launchpad\frontend
 Starting Metro Bundler
 warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web .\index.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 64.8% ( 72/106)
+Web .\index.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.6% (552/553)
+Web Bundled 7648ms index.js (555 modules)
+iOS .\index.js ▓▓▓▓▓▓░░░░░░░░░░ 41.8% (320/495)
+iOS .\index.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.5% (902/955)
+iOS Bundled 8586ms index.js (1033 modules)
+Web .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 32ms index.js (1 module)
+ LOG  [web] Logs will appear in the browser console

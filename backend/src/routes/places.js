@@ -1,5 +1,5 @@
 const express = require('express');
-const { fetchPhotoStream, fetchStaticMapStream } = require('../services/placesService');
+const { fetchPhotoStream, fetchStaticMapStream, searchAutocomplete, getPlaceDetails } = require('../services/placesService');
 
 const router = express.Router();
 
@@ -29,6 +29,29 @@ router.get('/staticmap', async (req, res) => {
     upstream.data.pipe(res);
   } catch (err) {
     res.status(502).json({ error: 'Failed to fetch static map', detail: err.message });
+  }
+});
+
+// Meeting-point search-as-you-type suggestions.
+router.get('/autocomplete', async (req, res) => {
+  try {
+    const { input } = req.query;
+    const suggestions = await searchAutocomplete(input || '');
+    res.json({ suggestions });
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to fetch suggestions', detail: err.message });
+  }
+});
+
+// Resolves a selected autocomplete suggestion to coordinates.
+router.get('/details', async (req, res) => {
+  try {
+    const { placeId } = req.query;
+    if (!placeId) return res.status(400).json({ error: 'placeId query param is required' });
+    const details = await getPlaceDetails(placeId);
+    res.json(details);
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to fetch place details', detail: err.message });
   }
 });
 
