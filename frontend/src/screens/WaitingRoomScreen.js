@@ -28,16 +28,28 @@ export default function WaitingRoomScreen({ navigation }) {
   }
 
   async function handleStartMatching() {
-    setStarting(true);
-    setError(null);
-    try {
-      await api.startMatching(code, deviceId, mode, mode === 'swipe' ? swipeCount : undefined);
-    } catch (err) {
-      setError(err.message);
-    } finally {
+  setStarting(true);
+  setError(null);
+
+  try {
+    // Fire-and-forget.
+    api.startMatching(
+      code,
+      deviceId,
+      mode,
+      mode === 'swipe' ? swipeCount : undefined
+    ).catch((err) => {
       setStarting(false);
-    }
+      setError(err.message);
+    });
+
+    // The socket events (candidates:ready / session:decided)
+    // will navigate the user automatically.
+  } catch (err) {
+    setStarting(false);
+    setError(err.message);
   }
+}
 
   if (!snapshot) {
     return (

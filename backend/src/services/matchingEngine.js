@@ -89,16 +89,26 @@ async function findCandidates(session, aggregate) {
 // Runs the full matching pipeline for a session: fetches candidates, persists them,
 // and either decides immediately (auto mode) or hands back a ranked deck (swipe mode).
 async function runMatching(sessionId) {
+
+  console.log("1. runMatching started");
+
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
-  if (!session) throw new Error('Session not found');
+
+  console.log("2. session loaded");
 
   const preferences = db.prepare('SELECT * FROM preferences WHERE session_id = ?').all(sessionId);
-  // If the deadline hits before anyone submits, fall back to a pure proximity search
-  // (no cuisine/budget filter) rather than blocking the group from deciding at all.
+
+  console.log("3. preferences loaded");
+
   const aggregate = preferences.length > 0
     ? aggregatePreferences(preferences)
     : { topCuisines: [], budgetRange: { min: -Infinity, max: Infinity }, dietary: [] };
+
+  console.log("4. searching restaurants");
+
   const ranked = await findCandidates(session, aggregate);
+
+  console.log("5. search finished", ranked.length);
 
   if (ranked.length === 0) {
     throw new Error('No restaurants found matching the group preferences');

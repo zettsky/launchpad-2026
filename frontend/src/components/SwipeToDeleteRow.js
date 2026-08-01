@@ -49,7 +49,10 @@ export default function SwipeToDeleteRow({ children, onDelete }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { width: '100%', position: 'relative' },
+  wrap: { width: '100%',
+  position: 'relative',
+  overflow: 'hidden',
+  borderRadius: 20, },
   deleteBackground: {
     position: 'absolute',
     top: 0,

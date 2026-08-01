@@ -7,7 +7,7 @@ export const BUDGET_TIERS = [
   { label: '$', min: 0, max: 1 },
   { label: '$$', min: 1, max: 2 },
   { label: '$$$', min: 2, max: 3 },
-  { label: '$$$$', min: 3, max: 4 },
+  
 ];
 
 export default function BudgetSelector({ value, onChange }) {
