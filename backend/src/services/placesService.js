@@ -107,13 +107,58 @@ async function getPlaceDetails(placeId) {
       'X-Goog-FieldMask': PLACE_DETAILS_FIELD_MASK,
     },
   });
+  const lat = data.location?.latitude ?? null;
+  const lng = data.location?.longitude ?? null;
+
+  let nearestMRT = null;
+
+  if (lat != null && lng != null) {
+    try {
+      nearestMRT = await getNearestMRT(lat, lng);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   return {
     formattedAddress: data.formattedAddress || null,
-    lat: data.location?.latitude ?? null,
-    lng: data.location?.longitude ?? null,
+    lat,
+    lng,
+    nearestMRT,
   };
 }
 
+async function getNearestMRT(lat, lng) {
+  if (!API_KEY) {
+    throw new Error('GOOGLE_MAPS_API_KEY is not configured');
+  }
+
+  const { data } = await axios.post(
+    'https://places.googleapis.com/v1/places:searchNearby',
+    {
+      includedTypes: ['subway_station', 'train_station'],
+      maxResultCount: 1,
+      locationRestriction: {
+        circle: {
+          center: {
+            latitude: lat,
+            longitude: lng,
+          },
+          radius: 2000,
+        },
+      },
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY,
+        'X-Goog-FieldMask': 'places.displayName',
+      },
+    }
+  );
+
+  return data.places?.[0]?.displayName?.text || null;
+}
 const AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
 // Singapore centre — same fallback reference used for zone-based restaurant search bias.
 const AUTOCOMPLETE_BIAS = { lat: 1.3521, lng: 103.8198 };
@@ -196,5 +241,6 @@ module.exports = {
   fetchStaticMapStream,
   haversineMeters,
   getPlaceDetails,
+  getNearestMRT,
   searchAutocomplete,
 };

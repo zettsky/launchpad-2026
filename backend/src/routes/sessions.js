@@ -57,6 +57,7 @@ async function buildSnapshot(session) {
       try {
         const details = await getPlaceDetails(session.decided_place_id);
         client.formattedAddress = details.formattedAddress;
+        client.nearestMRT = details.nearestMRT;
       } catch (err) {
         client.formattedAddress = null;
       }

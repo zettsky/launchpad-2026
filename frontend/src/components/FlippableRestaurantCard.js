@@ -56,6 +56,12 @@ export default function FlippableRestaurantCard({ restaurant }) {
       <Animated.View style={[styles.card, styles.back, { transform: [{ rotateY: backInterpolate }] }]}>
         <Text style={styles.backTitle}>{restaurant.name}</Text>
         <Text style={styles.backLine}>📍 {location}</Text>
+        {restaurant.nearestMRT && (
+  <Text style={styles.backLine}>
+    🚆 Nearest MRT: {restaurant.nearestMRT}
+  </Text>
+)}
+
         <Text style={styles.backLine}>🍽️ {cuisineLabel}</Text>
         <Text style={styles.backLine}>💰 {formatPrice(restaurant.priceLevel) || 'Price unknown'}</Text>
         <Text style={styles.backLine}>{restaurant.rating ? `★ ${restaurant.rating}` : 'No rating yet'}</Text>
