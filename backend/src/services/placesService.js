@@ -13,6 +13,8 @@ const FIELD_MASK = [
   'places.photos',
 ].join(',');
 
+
+
 // Google Places API (New) uses a named enum instead of the legacy 0-4 numeric price scale.
 const PRICE_LEVELS = [
   'PRICE_LEVEL_FREE',
@@ -78,6 +80,13 @@ async function searchRestaurants({ lat, lng, radiusMeters, cuisines, minPrice, m
 
   const results = data.places || [];
 
+  console.log(
+  results.map(p => ({
+    name: p.displayName?.text,
+    photos: p.photos,
+  }))
+);
+
   return results.map((place) => ({
     placeId: place.id,
     name: place.displayName?.text || 'Unknown',
@@ -89,7 +98,8 @@ async function searchRestaurants({ lat, lng, radiusMeters, cuisines, minPrice, m
     distanceM: place.location
       ? haversineMeters(lat, lng, place.location.latitude, place.location.longitude)
       : null,
-    photoRef: place.photos?.[0]?.name || null, // e.g. "places/{placeId}/photos/{photoResource}"
+    photos: place.photos?.map(photo => photo.name) || [],
+    photoRef: place.photos?.[0]?.name || null,
   }));
 }
 

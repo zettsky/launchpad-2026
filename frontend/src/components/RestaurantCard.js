@@ -27,7 +27,12 @@ export default function RestaurantCard({ restaurant }) {
           source={{ uri: imageUri }}
           style={styles.photo}
           resizeMode="cover"
-          onError={() => setImageFailed(true)}
+          onLoad={() => console.log("Loaded:", imageUri)}
+          onError={(e) => {
+            console.log("Failed:", imageUri);
+            console.log(e.nativeEvent);
+            setImageFailed(true);
+          }}
         />
       ) : (
         <View style={[styles.photo, styles.photoPlaceholder]}>
