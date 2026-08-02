@@ -1,6 +1,7 @@
 const axios = require('axios');
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+const YELP_API_KEY = process.env.YELP_API_KEY;
 const SEARCH_TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
 const FIELD_MASK = [
   'places.id',
@@ -92,12 +93,13 @@ async function searchRestaurants({ lat, lng, radiusMeters, cuisines, minPrice, m
   }));
 }
 
-const PLACE_DETAILS_FIELD_MASK = 'id,formattedAddress,location';
+const PLACE_DETAILS_FIELD_MASK = 'id,formattedAddress,location,photos';
 
 // Fetched on-demand only for the decided restaurant (not the whole shortlist), so no
 // schema/caching is needed for this. Also used by the meeting-point autocomplete to
-// resolve a selected suggestion's coordinates.
-async function getPlaceDetails(placeId) {
+// resolve a selected suggestion's coordinates (name/fetchPhotos aren't passed there, so
+// the photo-resolution work below is skipped in that case).
+async function getPlaceDetails(placeId, { name, fetchPhotos = false } = {}) {
   if (!API_KEY) {
     throw new Error('GOOGLE_MAPS_API_KEY is not configured');
   }
@@ -120,12 +122,54 @@ async function getPlaceDetails(placeId) {
     }
   }
 
+  let photos = [];
+  if (fetchPhotos) {
+    photos = (data.photos || [])
+      .slice(0, 5)
+      .map((p) => `/places/photo?ref=${encodeURIComponent(p.name)}`);
+
+    // Google Places has no photo for this place at all: fall back to Yelp Fusion, whose
+    // photo URLs are already public (no key-holding proxy needed to serve them).
+    if (photos.length === 0 && name && lat != null && lng != null) {
+      try {
+        photos = await getYelpPhotos(name, lat, lng);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+
   return {
     formattedAddress: data.formattedAddress || null,
     lat,
     lng,
     nearestMRT,
+    photos,
   };
+}
+
+const YELP_SEARCH_URL = 'https://api.yelp.com/v3/businesses/search';
+
+// Fallback for restaurants with no Google Places photo. Yelp Fusion requires its own
+// (free) API key — set YELP_API_KEY in the backend .env. If it's not configured, this
+// just returns no photos and callers fall back further (static map thumbnail, then a
+// plain placeholder on the client).
+async function getYelpPhotos(name, lat, lng) {
+  if (!YELP_API_KEY) return [];
+
+  const { data: search } = await axios.get(YELP_SEARCH_URL, {
+    params: { term: name, latitude: lat, longitude: lng, limit: 1 },
+    headers: { Authorization: `Bearer ${YELP_API_KEY}` },
+  });
+  const business = search.businesses?.[0];
+  if (!business) return [];
+
+  const { data: details } = await axios.get(`https://api.yelp.com/v3/businesses/${business.id}`, {
+    headers: { Authorization: `Bearer ${YELP_API_KEY}` },
+  });
+
+  if (details.photos && details.photos.length > 0) return details.photos.slice(0, 5);
+  return business.image_url ? [business.image_url] : [];
 }
 
 async function getNearestMRT(lat, lng) {

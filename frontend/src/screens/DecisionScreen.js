@@ -5,6 +5,7 @@ import { useSession } from '../context/SessionContext';
 import { api } from '../services/api';
 import FlippableRestaurantCard from '../components/FlippableRestaurantCard';
 import { useTheme } from '../context/ThemeContext';
+import { shareText } from '../services/share';
 
 export default function DecisionScreen({ navigation }) {
   const { code, deviceId, isHost, snapshot, dismissActiveSession } = useSession();
@@ -25,6 +26,12 @@ export default function DecisionScreen({ navigation }) {
     if (!decided) return;
     const url = `https://www.google.com/maps/dir/?api=1&destination=${decided.lat},${decided.lng}&destination_place_id=${decided.placeId}`;
     Linking.openURL(url);
+  }
+
+  async function handleShare() {
+    if (!decided) return;
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(decided.name)}&query_place_id=${decided.placeId}`;
+    await shareText(`Let's eat at ${decided.name}! ${mapsLink}`);
   }
 
   async function handleGoAgain() {
@@ -73,13 +80,17 @@ export default function DecisionScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
+        <TouchableOpacity style={commonStyles.filledButton} onPress={handleShare}>
+          <Text style={commonStyles.filledButtonText}>Share</Text>
+        </TouchableOpacity>
+
         {error && <Text style={styles.error}>{error}</Text>}
 
         <TouchableOpacity style={commonStyles.outlineButton} onPress={handleEndSession} disabled={ending}>
           {ending ? (
             <ActivityIndicator color={COLORS.primary} />
           ) : (
-            <Text style={commonStyles.outlineButtonText}>End Session</Text>
+            <Text style={commonStyles.outlineButtonText}>Pang kang</Text>
           )}
         </TouchableOpacity>
       </View>

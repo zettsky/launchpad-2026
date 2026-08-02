@@ -55,11 +55,16 @@ async function buildSnapshot(session) {
     if (decided) {
       const client = toClientCandidate(decided);
       try {
-        const details = await getPlaceDetails(session.decided_place_id);
+        const details = await getPlaceDetails(session.decided_place_id, {
+          name: client.name,
+          fetchPhotos: true,
+        });
         client.formattedAddress = details.formattedAddress;
         client.nearestMRT = details.nearestMRT;
+        client.photos = details.photos.length > 0 ? details.photos : (client.photoUrl ? [client.photoUrl] : []);
       } catch (err) {
         client.formattedAddress = null;
+        client.photos = client.photoUrl ? [client.photoUrl] : [];
       }
       snapshot.decided = client;
     } else {
@@ -68,6 +73,19 @@ async function buildSnapshot(session) {
   }
 
   return snapshot;
+}
+
+// Google's primaryType enum conflates cuisine and category (e.g. "italian_restaurant"),
+// so this splits it into the two separate labels the decision-screen UI shows.
+function deriveCuisineAndType(rawType) {
+  if (!rawType) return { cuisine: null, type: 'Restaurant' };
+  const titleCase = (s) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+  const cleaned = rawType.replace(/_/g, ' ').trim();
+  if (cleaned.endsWith(' restaurant')) {
+    const cuisine = cleaned.slice(0, -' restaurant'.length).trim();
+    return { cuisine: cuisine ? titleCase(cuisine) : null, type: 'Restaurant' };
+  }
+  return { cuisine: null, type: titleCase(cleaned) };
 }
 
 function toClientCandidate(row) {
@@ -81,10 +99,14 @@ function toClientCandidate(row) {
     photoUrl = `/places/staticmap?lat=${row.lat}&lng=${row.lng}`;
   }
 
+  const { cuisine, type } = deriveCuisineAndType(row.cuisine_tag);
+
   return {
     placeId: row.place_id,
     name: row.name,
     cuisineTag: row.cuisine_tag,
+    cuisine,
+    type,
     priceLevel: row.price_level,
     rating: row.rating,
     distanceM: row.distance_m,

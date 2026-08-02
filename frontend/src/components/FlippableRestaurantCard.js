@@ -1,13 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, Animated, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { API_BASE_URL } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 function formatPrice(priceLevel) {
-  if (priceLevel == null) return '';
+  if (priceLevel == null) return null;
   return '$'.repeat(Math.max(1, priceLevel + 1));
 }
 
+// Google-proxied photo paths are relative ("/places/photo?ref=...") and need the API
+// host prefixed; Yelp fallback photos are already full public URLs.
+function resolvePhotoUri(photo) {
+  return photo.startsWith('http') ? photo : `${API_BASE_URL}${photo}`;
+}
+
 export default function FlippableRestaurantCard({ restaurant }) {
+  const { colors: COLORS } = useTheme();
+  const styles = getStyles(COLORS);
   const [flipped, setFlipped] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -24,20 +33,20 @@ export default function FlippableRestaurantCard({ restaurant }) {
   const frontInterpolate = anim.interpolate({ inputRange: [0, 180], outputRange: ['0deg', '180deg'] });
   const backInterpolate = anim.interpolate({ inputRange: [0, 180], outputRange: ['180deg', '360deg'] });
 
-  const imageUri = restaurant.photoUrl ? `${API_BASE_URL}${restaurant.photoUrl}` : null;
-  const location = restaurant.formattedAddress || (restaurant.lat != null ? `${restaurant.lat.toFixed(5)}, ${restaurant.lng.toFixed(5)}` : 'Location unavailable');
-  const cuisineLabel = restaurant.cuisineTag ? restaurant.cuisineTag.replace(/_/g, ' ') : 'Unknown cuisine';
+  const photos = (restaurant.photos || []).map(resolvePhotoUri);
+  const mainPhoto = photos[0] || null;
+  const priceLabel = formatPrice(restaurant.priceLevel);
 
   useEffect(() => {
     setImageFailed(false);
-  }, [imageUri]);
+  }, [mainPhoto]);
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={handleFlip} style={styles.wrap}>
       <Animated.View style={[styles.card, { transform: [{ rotateY: frontInterpolate }] }]}>
-        {imageUri && !imageFailed ? (
+        {mainPhoto && !imageFailed ? (
           <Image
-            source={{ uri: imageUri }}
+            source={{ uri: mainPhoto }}
             style={styles.photo}
             resizeMode="cover"
             onError={() => setImageFailed(true)}
@@ -47,53 +56,81 @@ export default function FlippableRestaurantCard({ restaurant }) {
             <Text style={styles.placeholderEmoji}>🍽️</Text>
           </View>
         )}
-        <View style={styles.info}>
+        <View style={styles.nameBand}>
           <Text style={styles.name} numberOfLines={2}>{restaurant.name}</Text>
-          <Text style={styles.hint}>Tap to flip</Text>
         </View>
       </Animated.View>
 
       <Animated.View style={[styles.card, styles.back, { transform: [{ rotateY: backInterpolate }] }]}>
-        <Text style={styles.backTitle}>{restaurant.name}</Text>
-        <Text style={styles.backLine}>📍 {location}</Text>
-        {restaurant.nearestMRT && (
-  <Text style={styles.backLine}>
-    🚆 Nearest MRT: {restaurant.nearestMRT}
-  </Text>
-)}
+        <View style={styles.backLeft}>
+          <Text style={styles.backName} numberOfLines={4}>{restaurant.name}</Text>
+          <Text style={styles.backRating}>{restaurant.rating ? `${restaurant.rating.toFixed(1)} / 5` : '— / 5'}</Text>
+        </View>
 
-        <Text style={styles.backLine}>🍽️ {cuisineLabel}</Text>
-        <Text style={styles.backLine}>💰 {formatPrice(restaurant.priceLevel) || 'Price unknown'}</Text>
-        <Text style={styles.backLine}>{restaurant.rating ? `★ ${restaurant.rating}` : 'No rating yet'}</Text>
-        <Text style={styles.hint}>Tap to flip back</Text>
+        <View style={styles.backMiddle}>
+          <Text style={styles.backLabel}>📍 Location:</Text>
+          <Text style={styles.backDetail} numberOfLines={2}>{restaurant.nearestMRT || 'MRT unavailable'}</Text>
+          <Text style={styles.backDetail}>{restaurant.type || 'Restaurant'}</Text>
+          <Text style={styles.backDetail}>{restaurant.cuisine || 'Cuisine unknown'}</Text>
+          <Text style={styles.backDetail}>{priceLabel || 'Price unknown'}</Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.backPhotos}
+          contentContainerStyle={styles.backPhotosContent}
+        >
+          {photos.length > 0 ? (
+            photos.map((uri, i) => (
+              <Image key={i} source={{ uri }} style={styles.thumb} resizeMode="cover" />
+            ))
+          ) : (
+            <View style={[styles.thumb, styles.photoPlaceholder]}>
+              <Text style={styles.placeholderEmojiSmall}>🍽️</Text>
+            </View>
+          )}
+        </ScrollView>
       </Animated.View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { width: '100%', height: 340, position: 'relative' },
-  card: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    backfaceVisibility: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  back: { padding: 20 },
-  photo: { width: '100%', height: 220 },
-  photoPlaceholder: { backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' },
-  placeholderEmoji: { fontSize: 64 },
-  info: { padding: 16, gap: 4 },
-  name: { fontSize: 20, fontWeight: '700' },
-  hint: { fontSize: 12, color: '#999', marginTop: 8 },
-  backTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  backLine: { fontSize: 14, color: '#444', marginBottom: 8 },
-});
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    wrap: { width: '100%', height: 340, position: 'relative' },
+    card: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      borderRadius: 20,
+      backgroundColor: COLORS.cardBackground,
+      borderWidth: 2,
+      borderColor: COLORS.primary,
+      overflow: 'hidden',
+      backfaceVisibility: 'hidden',
+    },
+    back: { flexDirection: 'row', padding: 14, gap: 10 },
+    photo: { width: '100%', flex: 4 },
+    photoPlaceholder: { backgroundColor: COLORS.chipInactive, alignItems: 'center', justifyContent: 'center' },
+    placeholderEmoji: { fontSize: 56 },
+    placeholderEmojiSmall: { fontSize: 24 },
+    nameBand: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      backgroundColor: COLORS.chipInactive,
+    },
+    name: { fontSize: 18, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+    backLeft: { width: '26%', justifyContent: 'flex-start', gap: 8 },
+    backName: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+    backRating: { fontSize: 24, fontWeight: '900', color: COLORS.primaryDark },
+    backMiddle: { width: '34%', gap: 6, justifyContent: 'flex-start' },
+    backLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+    backDetail: { fontSize: 13, color: COLORS.textMuted },
+    backPhotos: { flex: 1 },
+    backPhotosContent: { gap: 8, alignItems: 'center' },
+    thumb: { width: 68, height: 100, borderRadius: 12 },
+  });
+}
