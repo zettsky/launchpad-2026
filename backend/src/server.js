@@ -59,20 +59,8 @@ const io = new Server(server, {
 
 attach(io);
 
-console.log('Restaurant image route registered');
-
 const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
   console.log(`Launchpad backend listening on port ${PORT}`);
 });
-
-console.log(
-  'Username:',
-  JSON.stringify(process.env.OXYLABS_USERNAME)
-);
-
-console.log(
-  'Password length:',
-  process.env.OXYLABS_PASSWORD?.length
-);

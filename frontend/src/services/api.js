@@ -1,6 +1,7 @@
 // Points at the backend started via `npm run dev` in ../backend.
-// If testing on a physical device via Expo Go, replace localhost with your machine's LAN IP.
-export const API_BASE_URL = 'http://localhost:4000';
+// EXPO_PUBLIC_API_URL overrides this for physical devices, tunnels, and the deployed
+// Vercel build — see frontend/.env and the Vercel project's environment variables.
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
