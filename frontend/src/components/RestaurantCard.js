@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import { API_BASE_URL } from '../services/api';
+import { api } from '../services/api';
 
 function formatDistance(distanceM) {
   if (distanceM == null) return '';
@@ -30,20 +30,10 @@ export default function RestaurantCard({ restaurant }) {
       setImageUrl(null);
 
       try {
-        const params = new URLSearchParams({
-          name: restaurant.name,
-          location: 'Singapore',
-        });
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/restaurant-image?${params.toString()}`
+        const data = await api.getRestaurantImage(
+          restaurant.name,
+          'Singapore'
         );
-
-        if (!response.ok) {
-          throw new Error(`Image request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
 
         if (!cancelled) {
           setImageUrl(data?.imageUrl || null);
