@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
 const { generateSessionCode } = require('../utils/codeGenerator');
 const { runMatching, resolveSwipeRound, resetForNextRound } = require('../services/matchingEngine');
-const { getPlaceDetails } = require('../services/placesService');
+const { getPlaceDetails, getCuisinePhoto } = require('../services/placesService');
 const { broadcast } = require('../sockets');
 
 const router = express.Router();
@@ -54,6 +54,7 @@ async function buildSnapshot(session) {
       .get(session.id, session.decided_place_id);
     if (decided) {
       const client = toClientCandidate(decided);
+      let photos = [];
       try {
         const details = await getPlaceDetails(session.decided_place_id, {
           name: client.name,
@@ -61,11 +62,19 @@ async function buildSnapshot(session) {
         });
         client.formattedAddress = details.formattedAddress;
         client.nearestMRT = details.nearestMRT;
-        client.photos = details.photos.length > 0 ? details.photos : (client.photoUrl ? [client.photoUrl] : []);
+        photos = details.photos;
       } catch (err) {
         client.formattedAddress = null;
-        client.photos = client.photoUrl ? [client.photoUrl] : [];
       }
+      if (photos.length === 0) {
+        try {
+          const cuisinePhoto = await getCuisinePhoto(client.cuisine || client.type);
+          if (cuisinePhoto) photos = [cuisinePhoto];
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      client.photos = photos.length > 0 ? photos : (client.photoUrl ? [client.photoUrl] : []);
       snapshot.decided = client;
     } else {
       snapshot.decided = null;

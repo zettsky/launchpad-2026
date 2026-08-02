@@ -1,4 +1,5 @@
 const axios = require('axios');
+const cheerio = require('cheerio');
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const YELP_API_KEY = process.env.YELP_API_KEY;
@@ -103,7 +104,7 @@ async function searchRestaurants({ lat, lng, radiusMeters, cuisines, minPrice, m
   }));
 }
 
-const PLACE_DETAILS_FIELD_MASK = 'id,formattedAddress,location,photos';
+const PLACE_DETAILS_FIELD_MASK = 'id,formattedAddress,location,photos,websiteUri';
 
 // Fetched on-demand only for the decided restaurant (not the whole shortlist), so no
 // schema/caching is needed for this. Also used by the meeting-point autocomplete to
@@ -138,11 +139,20 @@ async function getPlaceDetails(placeId, { name, fetchPhotos = false } = {}) {
       .slice(0, 5)
       .map((p) => `/places/photo?ref=${encodeURIComponent(p.name)}`);
 
-    // Google Places has no photo for this place at all: fall back to Yelp Fusion, whose
-    // photo URLs are already public (no key-holding proxy needed to serve them).
+    // Google Places has no photo for this place at all: fall back to Yelp Fusion (if
+    // configured), then to the restaurant's own website og:image (a link-preview-style
+    // meta tag, not a search-engine scrape — no ToS/blocking risk, no browser needed).
     if (photos.length === 0 && name && lat != null && lng != null) {
       try {
         photos = await getYelpPhotos(name, lat, lng);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    if (photos.length === 0 && data.websiteUri) {
+      try {
+        const ogImage = await getWebsiteOgImage(data.websiteUri);
+        if (ogImage) photos = [ogImage];
       } catch (err) {
         console.error(err);
       }
@@ -156,6 +166,24 @@ async function getPlaceDetails(placeId, { name, fetchPhotos = false } = {}) {
     nearestMRT,
     photos,
   };
+}
+
+// Last-resort photo fallback: read the restaurant's own website's Open Graph image tag
+// (the same <meta property="og:image"> tag chat apps use for link previews). This reads
+// a single public page's metadata, not a search engine's results, so it carries none of
+// the ToS/IP-block risk that scraping Google Search/Maps would.
+async function getWebsiteOgImage(websiteUrl) {
+  const { data: html } = await axios.get(websiteUrl, {
+    timeout: 5000,
+    maxContentLength: 2 * 1024 * 1024, // 2MB cap: we only need the <head>, not the whole page
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EatWhereBot/1.0)' },
+  });
+  const $ = cheerio.load(html);
+  const ogImage =
+    $('meta[property="og:image"]').attr('content') ||
+    $('meta[name="twitter:image"]').attr('content');
+  if (!ogImage) return null;
+  return new URL(ogImage, websiteUrl).toString();
 }
 
 const YELP_SEARCH_URL = 'https://api.yelp.com/v3/businesses/search';
@@ -180,6 +208,32 @@ async function getYelpPhotos(name, lat, lng) {
 
   if (details.photos && details.photos.length > 0) return details.photos.slice(0, 5);
   return business.image_url ? [business.image_url] : [];
+}
+
+const WIKIMEDIA_SEARCH_URL = 'https://commons.wikimedia.org/w/api.php';
+
+// Placeholder tier for restaurants with no real photo from any of the above (Google
+// billing not enabled, no Yelp key, no scrapable website og:image): a genuinely
+// representative food photo for the cuisine, from Wikimedia Commons' free, keyless,
+// openly-licensed search API. Not a photo of the specific restaurant, but far better
+// than a plain emoji for demo purposes — swap for a real per-restaurant photo API later.
+async function getCuisinePhoto(cuisineOrType) {
+  if (!cuisineOrType) return null;
+  const { data } = await axios.get(WIKIMEDIA_SEARCH_URL, {
+    params: {
+      action: 'query',
+      generator: 'search',
+      gsrsearch: `${cuisineOrType} cuisine food`,
+      gsrlimit: 1,
+      gsrnamespace: 6, // File: namespace only
+      prop: 'imageinfo',
+      iiprop: 'url',
+      format: 'json',
+    },
+    headers: { 'User-Agent': 'EatWhereApp/1.0 (hackathon demo)' },
+  });
+  const pages = Object.values(data.query?.pages || {});
+  return pages[0]?.imageinfo?.[0]?.url || null;
 }
 
 async function getNearestMRT(lat, lng) {
@@ -297,4 +351,5 @@ module.exports = {
   getPlaceDetails,
   getNearestMRT,
   searchAutocomplete,
+  getCuisinePhoto,
 };
