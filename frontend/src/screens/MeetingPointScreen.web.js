@@ -1,51 +1,81 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import * as Location from 'expo-location';
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
 import { useTheme } from '../context/ThemeContext';
+import LocationAutocomplete from '../components/LocationAutocomplete';
+
+// Metro doesn't bundle Leaflet's default marker images correctly, so point them at a CDN instead.
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 // Web fallback: react-native-maps doesn't run in the browser (see
-// MeetingPointScreen.native.js for the real map/search picker used on iOS/Android via
-// Expo Go). This keeps `expo start --web` usable for quick testing.
+// MeetingPointScreen.native.js for the map/search picker used on iOS/Android via Expo
+// Go). Uses Leaflet + OpenStreetMap instead of Google Maps JS so this works without
+// needing another Google Cloud API enabled/billed.
 const ZONES = ['north', 'east', 'south', 'west', 'central'];
 
 const todayStr = new Date().toISOString().split('T')[0];
+
+function ClickToSetMarker({ onSelect }) {
+  useMapEvents({
+    click(e) {
+      onSelect({ latitude: e.latlng.lat, longitude: e.latlng.lng });
+    },
+  });
+  return null;
+}
+
+function RecenterOnChange({ lat, lng }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng]);
+  }, [lat, lng]);
+  return null;
+}
 
 export default function MeetingPointScreen({ navigation }) {
   const { code } = useSession();
   const { colors: COLORS, commonStyles } = useTheme();
   const styles = getStyles(COLORS);
-  // Plain DOM <input> elements (not RN components) need a plain style object, not StyleSheet.create.
-  const webInputStyle = {
-    flex: 1,
-    border: `2px solid ${COLORS.primary}`,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-    fontFamily: 'inherit',
-    backgroundColor: COLORS.cardBackground,
-    color: COLORS.text,
-  };
   const [mode, setMode] = useState('pin'); // 'pin' | 'zone'
-  const [lat, setLat] = useState('');
-  const [lng, setLng] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState({
+    latitude: 1.3521,
+    longitude: 103.8198,
+  });
   const [zone, setZone] = useState(null);
   const [deadlineDateStr, setDeadlineDateStr] = useState(''); // YYYY-MM-DD
   const [deadlineTimeStr, setDeadlineTimeStr] = useState(''); // HH:MM (24h)
   const [error, setError] = useState(null);
 
+  async function getCurrentLocation() {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      const location = await Location.getCurrentPositionAsync({});
+      setSelectedLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    } catch (err) {
+      // browser denied geolocation or it's unsupported; leave the pin where it was
+    }
+  }
+
   async function handleSubmit() {
     setError(null);
     const payload = {};
     if (mode === 'pin') {
-      const latNum = parseFloat(lat);
-      const lngNum = parseFloat(lng);
-      if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
-        setError('Enter valid latitude and longitude');
-        return;
-      }
-      payload.lat = latNum;
-      payload.lng = lngNum;
+      payload.lat = selectedLocation.latitude;
+      payload.lng = selectedLocation.longitude;
     } else {
       if (!zone) {
         setError('Pick a zone');
@@ -78,7 +108,6 @@ export default function MeetingPointScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Meet Where?</Text>
-        <Text style={styles.webNote}>(Web preview — the map/search picker is on the mobile app)</Text>
 
         <View style={styles.toggleRow}>
           <TouchableOpacity
@@ -98,10 +127,38 @@ export default function MeetingPointScreen({ navigation }) {
         <View style={styles.card}>
           {mode === 'pin' ? (
             <View style={styles.section}>
-              <Text style={styles.label}>Latitude</Text>
-              <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numeric" placeholder="1.3048" placeholderTextColor={COLORS.textMuted} />
-              <Text style={styles.label}>Longitude</Text>
-              <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numeric" placeholder="103.8318" placeholderTextColor={COLORS.textMuted} />
+              <LocationAutocomplete
+                onSelectLocation={({ lat, lng }) => setSelectedLocation({ latitude: lat, longitude: lng })}
+              />
+
+              <View style={styles.mapWrapper}>
+                <MapContainer
+                  center={[selectedLocation.latitude, selectedLocation.longitude]}
+                  zoom={15}
+                  style={{ height: 300, width: '100%' }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  <Marker
+                    position={[selectedLocation.latitude, selectedLocation.longitude]}
+                    draggable
+                    eventHandlers={{
+                      dragend: (e) => {
+                        const { lat, lng } = e.target.getLatLng();
+                        setSelectedLocation({ latitude: lat, longitude: lng });
+                      },
+                    }}
+                  />
+                  <ClickToSetMarker onSelect={setSelectedLocation} />
+                  <RecenterOnChange lat={selectedLocation.latitude} lng={selectedLocation.longitude} />
+                </MapContainer>
+              </View>
+
+              <TouchableOpacity style={commonStyles.filledButton} onPress={getCurrentLocation}>
+                <Text style={commonStyles.filledButtonText}>📍 Use Current Location</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.zoneGrid}>
@@ -120,8 +177,37 @@ export default function MeetingPointScreen({ navigation }) {
           <View style={styles.deadlineRow}>
             <Text style={styles.label}>deadline:</Text>
             <View style={styles.dateTimeRow}>
-              <input type="date" value={deadlineDateStr} onChange={(e) => setDeadlineDateStr(e.target.value)} min={todayStr} style={webInputStyle} />
-              <input type="time" value={deadlineTimeStr} onChange={(e) => setDeadlineTimeStr(e.target.value)} style={webInputStyle} />
+              <input
+                type="date"
+                value={deadlineDateStr}
+                onChange={(e) => setDeadlineDateStr(e.target.value)}
+                min={todayStr}
+                style={{
+                  flex: 1,
+                  border: `2px solid ${COLORS.primary}`,
+                  borderRadius: 10,
+                  padding: 12,
+                  fontSize: 15,
+                  fontFamily: 'inherit',
+                  backgroundColor: COLORS.cardBackground,
+                  color: COLORS.text,
+                }}
+              />
+              <input
+                type="time"
+                value={deadlineTimeStr}
+                onChange={(e) => setDeadlineTimeStr(e.target.value)}
+                style={{
+                  flex: 1,
+                  border: `2px solid ${COLORS.primary}`,
+                  borderRadius: 10,
+                  padding: 12,
+                  fontSize: 15,
+                  fontFamily: 'inherit',
+                  backgroundColor: COLORS.cardBackground,
+                  color: COLORS.text,
+                }}
+              />
             </View>
           </View>
         </View>
@@ -141,11 +227,10 @@ function getStyles(COLORS) {
     container: { flex: 1, backgroundColor: COLORS.background },
     content: { padding: 24, gap: 12 },
     title: { fontSize: 36, fontWeight: '900', color: COLORS.text },
-    webNote: { fontSize: 12, color: COLORS.textMuted, marginTop: -6, marginBottom: 4 },
     label: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-    input: { borderWidth: 2, borderColor: COLORS.primary, borderRadius: 10, padding: 12, fontSize: 15, color: COLORS.text },
-    card: { borderWidth: 3, borderColor: COLORS.primary, borderRadius: 20, padding: 16, gap: 12 },
+    card: { borderWidth: 3, borderColor: COLORS.primary, borderRadius: 20, padding: 16, gap: 10 },
     section: { gap: 8 },
+    mapWrapper: { borderRadius: 12, overflow: 'hidden' },
     toggleRow: { flexDirection: 'row', gap: 8 },
     toggleButton: { flex: 1, paddingVertical: 14, borderRadius: 999, backgroundColor: COLORS.chipInactive, alignItems: 'center' },
     toggleButtonActive: { backgroundColor: COLORS.primary },

@@ -15,3 +15,19 @@ iOS Bundled 8586ms index.js (1033 modules)
 Web .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
 Web Bundled 32ms index.js (1 module)
  LOG  [web] Logs will appear in the browser console
+Web .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 26ms index.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 27ms index.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 29ms index.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+iOS .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS .\index.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 85.3% (811/878)
+iOS Bundled 6629ms index.js (1034 modules)
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/th3rdwave/react-native-safe-area-context
+iOS .\index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS Bundled 51ms index.js (1 module)
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/th3rdwave/react-native-safe-area-context
