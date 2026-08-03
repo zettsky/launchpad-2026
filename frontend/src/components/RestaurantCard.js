@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { api } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 function formatDistance(distanceM) {
   if (distanceM == null) return '';
@@ -17,6 +18,8 @@ function formatPrice(priceLevel) {
 }
 
 export default function RestaurantCard({ restaurant }) {
+  const { colors: COLORS } = useTheme();
+  const styles = getStyles(COLORS);
   const [imageUrl, setImageUrl] = useState(null);
   const [loadingImage, setLoadingImage] = useState(true);
   const [imageFailed, setImageFailed] = useState(false);
@@ -65,7 +68,7 @@ export default function RestaurantCard({ restaurant }) {
     <View style={styles.card}>
       {loadingImage ? (
         <View style={[styles.photo, styles.photoPlaceholder]}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : imageUrl && !imageFailed ? (
         <Image
@@ -104,46 +107,49 @@ export default function RestaurantCard({ restaurant }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    width: '100%',
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    card: {
+      width: '100%',
+      borderRadius: 16,
+      backgroundColor: COLORS.cardBackground,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    },
 
-  photo: {
-    width: '100%',
-    height: 260,
-  },
+    photo: {
+      width: '100%',
+      height: 260,
+    },
 
-  photoPlaceholder: {
-    backgroundColor: '#eee',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    photoPlaceholder: {
+      backgroundColor: COLORS.chipInactive,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  placeholderEmoji: {
-    fontSize: 64,
-  },
+    placeholderEmoji: {
+      fontSize: 64,
+    },
 
-  info: {
-    padding: 16,
-    gap: 4,
-  },
+    info: {
+      padding: 16,
+      gap: 4,
+    },
 
-  name: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
+    name: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: COLORS.text,
+    },
 
-  meta: {
-    fontSize: 14,
-    color: '#555',
-  },
-});
+    meta: {
+      fontSize: 14,
+      color: COLORS.textMuted,
+    },
+  });
+}

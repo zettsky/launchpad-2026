@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, PanResponder, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import RestaurantCard from './RestaurantCard';
+import { useTheme } from '../context/ThemeContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 120;
 
 export default function SwipeDeck({ candidates, onSwipe }) {
+  const { colors: COLORS } = useTheme();
+  const styles = getStyles(COLORS);
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
   const isAnimatingRef = useRef(false);
@@ -105,17 +108,19 @@ export default function SwipeDeck({ candidates, onSwipe }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { alignItems: 'center', width: '100%' },
-  cardStack: { width: '100%', maxWidth: 360, height: 440 },
-  cardWrap: { position: 'absolute', width: '100%' },
-  nextCard: { top: 8, transform: [{ scale: 0.96 }], opacity: 0.7 },
-  buttonsRow: { flexDirection: 'row', gap: 20, marginTop: 24 },
-  actionButton: { paddingVertical: 14, paddingHorizontal: 28, borderRadius: 999 },
-  noButton: { backgroundColor: '#f1f1f1' },
-  yesButton: { backgroundColor: '#ff5a5f' },
-  actionText: { fontSize: 16, fontWeight: '700', color: '#222' },
-  yesText: { color: '#fff' },
-  empty: { padding: 32, alignItems: 'center' },
-  emptyText: { fontSize: 16, textAlign: 'center', color: '#555' },
-});
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    container: { alignItems: 'center', width: '100%' },
+    cardStack: { width: '100%', maxWidth: 360, height: 440 },
+    cardWrap: { position: 'absolute', width: '100%' },
+    nextCard: { top: 8, transform: [{ scale: 0.96 }], opacity: 0.7 },
+    buttonsRow: { flexDirection: 'row', gap: 20, marginTop: 24 },
+    actionButton: { paddingVertical: 14, paddingHorizontal: 28, borderRadius: 999 },
+    noButton: { backgroundColor: COLORS.chipInactive },
+    yesButton: { backgroundColor: COLORS.danger },
+    actionText: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+    yesText: { color: '#fff' },
+    empty: { padding: 32, alignItems: 'center' },
+    emptyText: { fontSize: 16, textAlign: 'center', color: COLORS.textMuted },
+  });
+}

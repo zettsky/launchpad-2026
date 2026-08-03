@@ -3,10 +3,6 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { API_BASE_URL } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 
-const THUMB_WIDTH = 120;
-const THUMB_GAP = 10;
-const SLIDE_STEP = THUMB_WIDTH + THUMB_GAP;
-
 function formatPrice(priceLevel) {
   if (priceLevel == null) return null;
   return '$'.repeat(Math.max(1, priceLevel + 1));
@@ -16,6 +12,26 @@ function formatPrice(priceLevel) {
 // host prefixed; Yelp/website/Wikimedia fallback photos are already full public URLs.
 function resolvePhotoUri(photo) {
   return photo.startsWith('http') ? photo : `${API_BASE_URL}${photo}`;
+}
+
+// Some photo URLs (e.g. a restaurant's own site blocking hotlinked requests) fail to
+// load in-browser despite being reachable directly — the front face already falls back
+// to a placeholder for this, and each carousel slot needs the same per-image handling,
+// since one blocked URL shouldn't leave that slot blank.
+function CarouselImage({ uri, style, styles }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+
+  if (failed) {
+    return (
+      <View style={[style, styles.photoPlaceholder]}>
+        <Text style={styles.placeholderEmojiSmall}>🍽️</Text>
+      </View>
+    );
+  }
+  return <Image source={{ uri }} style={style} resizeMode="cover" onError={() => setFailed(true)} />;
 }
 
 export default function FlippableRestaurantCard({ restaurant }) {
@@ -55,10 +71,10 @@ export default function FlippableRestaurantCard({ restaurant }) {
   // native responder system already isolates this, but react-native-web dispatches
   // real DOM clicks that bubble, so it needs stopping explicitly there.
   //
-  // The gallery is driven by this index + a CSS translateX rather than a ScrollView's
-  // imperative scrollTo ref: on this react-native-web setup, scrollTo calls (both via
-  // the RN ref and the raw DOM API) silently no-op, while property-driven layout via
-  // transform/state always applies through React's normal render cycle.
+  // The carousel always renders photos[index-1/index/index+1] directly from state
+  // rather than using a ScrollView's imperative scrollTo ref: on this react-native-web
+  // setup, scrollTo calls (both via the RN ref and the raw DOM API) silently no-op,
+  // while property-driven layout via plain render always applies correctly.
   function slidePhotos(direction, e) {
     e?.stopPropagation?.();
     setPhotoIndex((i) => Math.max(0, Math.min(i + direction, maxPhotoIndex)));
@@ -91,7 +107,9 @@ export default function FlippableRestaurantCard({ restaurant }) {
       >
         <View style={styles.backLeft}>
           <Text style={styles.backName} numberOfLines={4}>{restaurant.name}</Text>
-          <Text style={styles.backRating}>{restaurant.rating ? `${restaurant.rating.toFixed(1)} / 5` : '— / 5'}</Text>
+          <View style={styles.ratingWrap}>
+            <Text style={styles.backRating}>{restaurant.rating ? `${restaurant.rating.toFixed(1)} / 5` : '— / 5'}</Text>
+          </View>
         </View>
 
         <View style={styles.backMiddle}>
@@ -104,6 +122,10 @@ export default function FlippableRestaurantCard({ restaurant }) {
             <Text style={styles.backDetail}>{restaurant.nearestMRT || 'Unavailable'}</Text>
           </Text>
           <Text style={styles.backRow}>
+            <Text style={styles.backLabel}>Type: </Text>
+            <Text style={styles.backDetail}>{restaurant.type || 'Unknown'}</Text>
+          </Text>
+          <Text style={styles.backRow}>
             <Text style={styles.backLabel}>Cuisine: </Text>
             <Text style={styles.backDetail}>{restaurant.cuisine || 'Unknown'}</Text>
           </Text>
@@ -114,8 +136,31 @@ export default function FlippableRestaurantCard({ restaurant }) {
         </View>
 
         <View style={styles.backRight}>
-          <Text style={styles.picturesTitle}>Pictures</Text>
-          <View style={styles.photoRow}>
+          <Text style={styles.picturesTitle}>Food through customers' eyes</Text>
+
+          {photos.length > 0 ? (
+            <View style={styles.carousel}>
+              {photoIndex > 0 ? (
+                <CarouselImage uri={photos[photoIndex - 1]} style={styles.thumbSide} styles={styles} />
+              ) : (
+                <View style={styles.thumbSideSlot} />
+              )}
+
+              <CarouselImage uri={photos[photoIndex]} style={styles.thumbMain} styles={styles} />
+
+              {photoIndex < maxPhotoIndex ? (
+                <CarouselImage uri={photos[photoIndex + 1]} style={styles.thumbSide} styles={styles} />
+              ) : (
+                <View style={styles.thumbSideSlot} />
+              )}
+            </View>
+          ) : (
+            <View style={[styles.thumbMain, styles.photoPlaceholder]}>
+              <Text style={styles.placeholderEmojiSmall}>🍽️</Text>
+            </View>
+          )}
+
+          <View style={styles.arrowRow}>
             <TouchableOpacity
               style={[styles.arrowButton, photoIndex === 0 && styles.arrowButtonDisabled]}
               disabled={photoIndex === 0}
@@ -123,21 +168,6 @@ export default function FlippableRestaurantCard({ restaurant }) {
             >
               <Text style={styles.arrowText}>‹</Text>
             </TouchableOpacity>
-
-            <View style={styles.backPhotosViewport}>
-              {photos.length > 0 ? (
-                <View style={[styles.backPhotosTrack, { transform: [{ translateX: -photoIndex * SLIDE_STEP }] }]}>
-                  {photos.map((uri, i) => (
-                    <Image key={i} source={{ uri }} style={styles.thumb} resizeMode="cover" />
-                  ))}
-                </View>
-              ) : (
-                <View style={[styles.thumb, styles.photoPlaceholder]}>
-                  <Text style={styles.placeholderEmojiSmall}>🍽️</Text>
-                </View>
-              )}
-            </View>
-
             <TouchableOpacity
               style={[styles.arrowButton, photoIndex >= maxPhotoIndex && styles.arrowButtonDisabled]}
               disabled={photoIndex >= maxPhotoIndex}
@@ -179,16 +209,26 @@ function getStyles(COLORS) {
       backgroundColor: COLORS.chipInactive,
     },
     name: { fontSize: 18, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
-    backLeft: { flex: 2, justifyContent: 'flex-start', gap: 12 },
-    backName: { fontSize: 22, fontWeight: '900', color: COLORS.text },
-    backRating: { fontSize: 36, fontWeight: '900', color: COLORS.primaryDark },
-    backMiddle: { flex: 3, gap: 12, justifyContent: 'flex-start' },
+    // Name stays pinned at the top per the design; everything else in the back face
+    // (rating, the middle details, and the whole picture column) is vertically
+    // centered in the remaining space.
+    backLeft: { flex: 2 },
+    backName: { fontSize: 26, fontWeight: '900', color: COLORS.text },
+    ratingWrap: { flex: 1, justifyContent: 'center' },
+    backRating: { fontSize: 52, fontWeight: '900', color: COLORS.primaryDark },
+    backMiddle: { flex: 3, gap: 14, justifyContent: 'center' },
     backRow: { fontSize: 14, lineHeight: 19 },
     backLabel: { fontWeight: '800', color: COLORS.text },
     backDetail: { color: COLORS.textMuted },
-    backRight: { flex: 4, gap: 8 },
-    picturesTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
-    photoRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
+    backRight: { flex: 4, gap: 10, justifyContent: 'center', alignItems: 'center' },
+    picturesTitle: { fontSize: 13, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+    carousel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    thumbMain: { width: 130, height: 190, borderRadius: 16 },
+    // The two neighbouring photos "condense" (narrower) and "lighten" (reduced
+    // opacity) to visually recede next to the focused main photo.
+    thumbSide: { width: 55, height: 150, borderRadius: 12, opacity: 0.4 },
+    thumbSideSlot: { width: 55, height: 150 },
+    arrowRow: { flexDirection: 'row', gap: 20 },
     arrowButton: {
       width: 28,
       height: 28,
@@ -199,8 +239,5 @@ function getStyles(COLORS) {
     },
     arrowButtonDisabled: { opacity: 0.35 },
     arrowText: { fontSize: 20, fontWeight: '900', color: COLORS.primaryDark, lineHeight: 22 },
-    backPhotosViewport: { flex: 1, height: '100%', overflow: 'hidden' },
-    backPhotosTrack: { flexDirection: 'row', gap: THUMB_GAP, height: '100%' },
-    thumb: { width: THUMB_WIDTH, height: 170, borderRadius: 14 },
   });
 }

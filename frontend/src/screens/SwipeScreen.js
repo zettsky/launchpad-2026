@@ -3,9 +3,12 @@ import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-n
 import { api } from '../services/api';
 import { useSession } from '../context/SessionContext';
 import SwipeDeck from '../components/SwipeDeck';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SwipeScreen({ navigation }) {
   const { code, memberId, snapshot } = useSession();
+  const { colors: COLORS } = useTheme();
+  const styles = getStyles(COLORS);
 
   useEffect(() => {
     if (snapshot?.state === 'decided') {
@@ -35,8 +38,10 @@ export default function SwipeScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: '600', color: '#333', marginTop: 16, marginBottom: 8, textAlign: 'center', paddingHorizontal: 24 },
-  deckWrap: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
-});
+function getStyles(COLORS) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: COLORS.background, alignItems: 'center' },
+    title: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 16, marginBottom: 8, textAlign: 'center', paddingHorizontal: 24 },
+    deckWrap: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
+  });
+}
