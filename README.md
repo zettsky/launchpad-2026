@@ -4,6 +4,8 @@ EatWhere! is a collaborative restaurant decision-making application that helps g
 
 Instead of endless discussions in group chats, users join a shared session, submit their food preferences, and let the app recommend restaurants that best match everyone's choices.
 
+Note: As we are using a free version of Google's Places API, the number of times that we can run our program as of now is limited.
+
 ---
 
 ## Features
