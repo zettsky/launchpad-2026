@@ -248,84 +248,88 @@ export default function FlippableRestaurantCard({
                 Food through customers' eyes
               </Text>
 
-              {photos.length > 0 ? (
+              <View style={styles.galleryWrap}>
 
-                <View style={styles.gallery}>
+                {photos.length > 0 ? (
 
-                  {photoIndex > 0 ? (
+                  <View style={styles.gallery}>
+
+                    {photoIndex > 0 ? (
+                      <CarouselImage
+                        uri={photos[photoIndex - 1]}
+                        style={styles.sideImage}
+                        styles={styles}
+                      />
+                    ) : (
+                      <View style={styles.sideSpacer} />
+                    )}
+
                     <CarouselImage
-                      uri={photos[photoIndex - 1]}
-                      style={styles.sideImage}
+                      uri={photos[photoIndex]}
+                      style={styles.mainImage}
                       styles={styles}
                     />
-                  ) : (
-                    <View style={styles.sideSpacer} />
-                  )}
 
-                  <CarouselImage
-                    uri={photos[photoIndex]}
-                    style={styles.mainImage}
-                    styles={styles}
-                  />
+                    {photoIndex < maxPhotoIndex ? (
+                      <CarouselImage
+                        uri={photos[photoIndex + 1]}
+                        style={styles.sideImage}
+                        styles={styles}
+                      />
+                    ) : (
+                      <View style={styles.sideSpacer} />
+                    )}
 
-                  {photoIndex < maxPhotoIndex ? (
-                    <CarouselImage
-                      uri={photos[photoIndex + 1]}
-                      style={styles.sideImage}
-                      styles={styles}
-                    />
-                  ) : (
-                    <View style={styles.sideSpacer} />
-                  )}
+                  </View>
+
+                ) : (
+
+                  <View
+                    style={[
+                      styles.mainImage,
+                      styles.photoPlaceholder,
+                    ]}
+                  >
+                    <Text style={styles.placeholderEmojiSmall}>
+                      🍽️
+                    </Text>
+                  </View>
+
+                )}
+
+                <View style={styles.arrowRow}>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.arrowButton,
+                      photoIndex === 0 &&
+                        styles.arrowDisabled,
+                    ]}
+                    disabled={photoIndex === 0}
+                    onPress={previousPhoto}
+                  >
+                    <Text style={styles.arrowText}>
+                      ‹
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.arrowButton,
+                      photoIndex >= maxPhotoIndex &&
+                        styles.arrowDisabled,
+                    ]}
+                    disabled={
+                      photoIndex >= maxPhotoIndex
+                    }
+                    onPress={nextPhoto}
+                  >
+                    <Text style={styles.arrowText}>
+                      ›
+                    </Text>
+                  </TouchableOpacity>
 
                 </View>
-
-              ) : (
-
-                <View
-                  style={[
-                    styles.mainImage,
-                    styles.photoPlaceholder,
-                  ]}
-                >
-                  <Text style={styles.placeholderEmojiSmall}>
-                    🍽️
-                  </Text>
-                </View>
-
-              )}
-
-              <View style={styles.arrowRow}>
-
-                <TouchableOpacity
-                  style={[
-                    styles.arrowButton,
-                    photoIndex === 0 &&
-                      styles.arrowDisabled,
-                  ]}
-                  disabled={photoIndex === 0}
-                  onPress={previousPhoto}
-                >
-                  <Text style={styles.arrowText}>
-                    ‹
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.arrowButton,
-                    photoIndex >= maxPhotoIndex &&
-                      styles.arrowDisabled,
-                  ]}
-                  disabled={
-                    photoIndex >= maxPhotoIndex
-                  }
-                  onPress={nextPhoto}
-                >
-                  <Text style={styles.arrowText}>
-                    ›
-                  </Text>
-                </TouchableOpacity>
 
               </View>
 
@@ -403,11 +407,19 @@ function getStyles(COLORS) {
     middleColumn: {
       flex: 3,
       justifyContent: 'center',
+      alignItems: 'center',
       paddingHorizontal: 8,
     },
 
+    // Title stays pinned at the top, in line with the restaurant name in the left
+    // column; the gallery+arrows below it center in the remaining space.
     rightColumn: {
       flex: 4,
+      alignItems: 'center',
+    },
+
+    galleryWrap: {
+      flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -435,6 +447,7 @@ function getStyles(COLORS) {
       fontSize: 15,
       lineHeight: 23,
       marginBottom: 14,
+      textAlign: 'center',
     },
 
     label: {
@@ -461,22 +474,22 @@ function getStyles(COLORS) {
     },
 
     mainImage: {
-      width: 145,
-      height: 210,
+      width: 185,
+      height: 250,
       borderRadius: 18,
-      marginHorizontal: 8,
+      marginHorizontal: 10,
     },
 
     sideImage: {
-      width: 55,
-      height: 155,
+      width: 80,
+      height: 195,
       borderRadius: 12,
       opacity: 0.35,
     },
 
         sideSpacer: {
-      width: 55,
-      height: 155,
+      width: 80,
+      height: 195,
     },
 
     arrowRow: {

@@ -102,7 +102,7 @@ function getStyles(COLORS) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.background },
     content: { flex: 1, padding: 24, gap: 12, justifyContent: 'center' },
-    title: { fontSize: 100, fontWeight: '900', color: COLORS.text, textAlign: 'center', marginBottom: 12 },
+    title: { fontSize: 40, fontWeight: '900', color: COLORS.text, textAlign: 'center', marginBottom: 12 },
     error: { color: '#d33', fontSize: 14, textAlign: 'center', marginTop: 4 },
   });
 }
