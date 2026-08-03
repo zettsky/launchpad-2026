@@ -3,7 +3,9 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
 const { generateSessionCode } = require('../utils/codeGenerator');
 const { runMatching, resolveSwipeRound, resetForNextRound } = require('../services/matchingEngine');
-const { getPlaceDetails, getCuisinePhoto } = require('../services/placesService');
+const { getPlaceDetails, getCuisinePhotos } = require('../services/placesService');
+
+const MAX_DECIDED_PHOTOS = 10;
 const { broadcast } = require('../sockets');
 
 const router = express.Router();
@@ -66,14 +68,15 @@ async function buildSnapshot(session) {
       } catch (err) {
         client.formattedAddress = null;
       }
-      if (photos.length === 0) {
+      if (photos.length < MAX_DECIDED_PHOTOS) {
         try {
-          const cuisinePhoto = await getCuisinePhoto(client.cuisine || client.type);
-          if (cuisinePhoto) photos = [cuisinePhoto];
+          const cuisinePhotos = await getCuisinePhotos(client.cuisine || client.type, MAX_DECIDED_PHOTOS - photos.length);
+          photos = photos.concat(cuisinePhotos);
         } catch (err) {
           console.error(err);
         }
       }
+      photos = photos.slice(0, MAX_DECIDED_PHOTOS);
       client.photos = photos.length > 0 ? photos : (client.photoUrl ? [client.photoUrl] : []);
       snapshot.decided = client;
     } else {

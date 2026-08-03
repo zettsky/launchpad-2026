@@ -133,30 +133,34 @@ async function getPlaceDetails(placeId, { name, fetchPhotos = false } = {}) {
     }
   }
 
+  const MAX_PHOTOS = 10;
   let photos = [];
   if (fetchPhotos) {
     photos = (data.photos || [])
-      .slice(0, 5)
+      .slice(0, MAX_PHOTOS)
       .map((p) => `/places/photo?ref=${encodeURIComponent(p.name)}`);
 
-    // Google Places has no photo for this place at all: fall back to Yelp Fusion (if
-    // configured), then to the restaurant's own website og:image (a link-preview-style
-    // meta tag, not a search-engine scrape — no ToS/blocking risk, no browser needed).
-    if (photos.length === 0 && name && lat != null && lng != null) {
+    // Keep gathering from the next tier as long as there's still room, rather than
+    // stopping at the first source that returns anything — Yelp Fusion, then the
+    // restaurant's own website og:image (a link-preview-style meta tag, not a
+    // search-engine scrape — no ToS/blocking risk, no browser needed).
+    if (photos.length < MAX_PHOTOS && name && lat != null && lng != null) {
       try {
-        photos = await getYelpPhotos(name, lat, lng);
+        const yelpPhotos = await getYelpPhotos(name, lat, lng);
+        photos = photos.concat(yelpPhotos);
       } catch (err) {
         console.error(err);
       }
     }
-    if (photos.length === 0 && data.websiteUri) {
+    if (photos.length < MAX_PHOTOS && data.websiteUri) {
       try {
         const ogImage = await getWebsiteOgImage(data.websiteUri);
-        if (ogImage) photos = [ogImage];
+        if (ogImage && !photos.includes(ogImage)) photos.push(ogImage);
       } catch (err) {
         console.error(err);
       }
     }
+    photos = photos.slice(0, MAX_PHOTOS);
   }
 
   return {
@@ -206,25 +210,25 @@ async function getYelpPhotos(name, lat, lng) {
     headers: { Authorization: `Bearer ${YELP_API_KEY}` },
   });
 
-  if (details.photos && details.photos.length > 0) return details.photos.slice(0, 5);
+  if (details.photos && details.photos.length > 0) return details.photos.slice(0, 10);
   return business.image_url ? [business.image_url] : [];
 }
 
 const WIKIMEDIA_SEARCH_URL = 'https://commons.wikimedia.org/w/api.php';
 
-// Placeholder tier for restaurants with no real photo from any of the above (Google
-// billing not enabled, no Yelp key, no scrapable website og:image): a genuinely
-// representative food photo for the cuisine, from Wikimedia Commons' free, keyless,
-// openly-licensed search API. Not a photo of the specific restaurant, but far better
-// than a plain emoji for demo purposes — swap for a real per-restaurant photo API later.
-async function getCuisinePhoto(cuisineOrType) {
-  if (!cuisineOrType) return null;
+// Fill-in tier so the gallery has enough images to scroll through even when the tiers
+// above found few or none: genuinely representative food photos for the cuisine, from
+// Wikimedia Commons' free, keyless, openly-licensed search API. Not photos of the
+// specific restaurant, but far better than a near-empty gallery for demo purposes —
+// swap for a real per-restaurant photo API later.
+async function getCuisinePhotos(cuisineOrType, limit = 10) {
+  if (!cuisineOrType || limit <= 0) return [];
   const { data } = await axios.get(WIKIMEDIA_SEARCH_URL, {
     params: {
       action: 'query',
       generator: 'search',
       gsrsearch: `${cuisineOrType} cuisine food`,
-      gsrlimit: 1,
+      gsrlimit: limit,
       gsrnamespace: 6, // File: namespace only
       prop: 'imageinfo',
       iiprop: 'url',
@@ -233,7 +237,7 @@ async function getCuisinePhoto(cuisineOrType) {
     headers: { 'User-Agent': 'EatWhereApp/1.0 (hackathon demo)' },
   });
   const pages = Object.values(data.query?.pages || {});
-  return pages[0]?.imageinfo?.[0]?.url || null;
+  return pages.map((p) => p.imageinfo?.[0]?.url).filter(Boolean);
 }
 
 async function getNearestMRT(lat, lng) {
@@ -351,5 +355,5 @@ module.exports = {
   getPlaceDetails,
   getNearestMRT,
   searchAutocomplete,
-  getCuisinePhoto,
+  getCuisinePhotos,
 };
