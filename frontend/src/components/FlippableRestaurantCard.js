@@ -348,8 +348,8 @@ function getStyles(COLORS) {
   return StyleSheet.create({
         wrapper: {
       width: '100%',
-      height: 430,
-      marginVertical: 10,
+      height: 320,
+      marginVertical: 6,
     },
 
     card: {
@@ -408,7 +408,8 @@ function getStyles(COLORS) {
       flex: 3,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 8,
+      paddingLeft: 28,
+      paddingRight: 8,
     },
 
     // Title stays pinned at the top, in line with the restaurant name in the left
@@ -474,22 +475,22 @@ function getStyles(COLORS) {
     },
 
     mainImage: {
-      width: 185,
-      height: 250,
+      width: 150,
+      height: 190,
       borderRadius: 18,
       marginHorizontal: 10,
     },
 
     sideImage: {
-      width: 80,
-      height: 195,
+      width: 60,
+      height: 150,
       borderRadius: 12,
       opacity: 0.35,
     },
 
         sideSpacer: {
-      width: 80,
-      height: 195,
+      width: 60,
+      height: 150,
     },
 
     arrowRow: {

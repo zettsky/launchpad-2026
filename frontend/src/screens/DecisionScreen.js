@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Linking, ActivityIndicator } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Linking, ActivityIndicator } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
 import { useSession } from '../context/SessionContext';
 import { api } from '../services/api';
@@ -62,7 +62,7 @@ export default function DecisionScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Eat Here!</Text>
         <FlippableRestaurantCard restaurant={decided} />
 
@@ -93,7 +93,7 @@ export default function DecisionScreen({ navigation }) {
             <Text style={commonStyles.outlineButtonText}>Pang kang</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -101,8 +101,11 @@ export default function DecisionScreen({ navigation }) {
 function getStyles(COLORS) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.background },
-    content: { flex: 1, padding: 24, gap: 12, justifyContent: 'center' },
-    title: { fontSize: 40, fontWeight: '900', color: COLORS.text, textAlign: 'center', marginBottom: 12 },
+    // flexGrow (not flex) on a ScrollView's contentContainerStyle: centers content when
+    // it's shorter than the screen, but lets it scroll instead of clipping both ends
+    // (e.g. the title or the last button) when it's taller.
+    content: { flexGrow: 1, padding: 20, gap: 8, justifyContent: 'center' },
+    title: { fontSize: 34, fontWeight: '900', color: COLORS.text, textAlign: 'center', marginBottom: 4 },
     error: { color: '#d33', fontSize: 14, textAlign: 'center', marginTop: 4 },
   });
 }
