@@ -39,7 +39,7 @@ router.get('/autocomplete', async (req, res) => {
     const suggestions = await searchAutocomplete(input || '');
     res.json({ suggestions });
   } catch (err) {
-    res.status(502).json({ error: 'Failed to fetch suggestions', detail: err.message });
+    res.status(502).json({ error: 'Failed to fetch suggestions', detail: err.message, googleError: err.response?.data });
   }
 });
 
@@ -51,7 +51,7 @@ router.get('/details', async (req, res) => {
     const details = await getPlaceDetails(placeId);
     res.json(details);
   } catch (err) {
-    res.status(502).json({ error: 'Failed to fetch place details', detail: err.message });
+    res.status(502).json({ error: 'Failed to fetch place details', detail: err.message, googleError: err.response?.data });
   }
 });
 
